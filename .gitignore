@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local databases
+*.db
+*.sqlite3
+
+# Uploads: keep folder, keep .gitkeep, ignore everything else
+static/uploads/**
+!static/uploads/
+!static/uploads/.gitkeep
+
+# Common local junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
