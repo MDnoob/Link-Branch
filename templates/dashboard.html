@@ -1,0 +1,530 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}Dashboard Ã¢â‚¬â€ Link Branch{% endblock %}
+
+{% block extra_styles %}
+.main {
+    padding: 2rem 2.5rem;
+    max-width: 900px;
+    animation: pageIn 420ms cubic-bezier(0.16,1,0.3,1);
+    background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.45));
+    border: 1px solid rgba(228,226,222,0.9);
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.06);
+    margin: 1rem 0;
+    overflow: visible;
+}
+@keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.page-header { margin-bottom: 1.75rem; }
+.page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.page-subtitle { font-size: 0.825rem; color: #888; margin-top: 0.2rem; }
+.section-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 0.6rem; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Action bar above add form Ã¢â€â‚¬Ã¢â€â‚¬ */
+.top-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.btn-share-page { display: flex; align-items: center; gap: 0.4rem; height: 32px; padding: 0 0.85rem; background: #f4f2ef; color: #555; border: none; border-radius: 7px; font-size: 0.8rem; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 120ms; text-decoration: none; }
+.btn-share-page:hover { background: #ebe9e5; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Add cards Ã¢â€â‚¬Ã¢â€â‚¬ */
+.add-link-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.1rem 1.25rem 1.25rem; margin-bottom: 0.75rem; overflow: visible; }
+.add-section-card { background: #fafaf9; border: 1px dashed #d4d1cc; border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1.75rem; display: flex; align-items: center; gap: 0.75rem; overflow: visible; }
+.add-section-input { flex: 1; height: 34px; padding: 0 0.75rem; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.875rem; font-family: inherit; color: #1a1a18; background: #fff; outline: none; transition: border-color 150ms; }
+.add-section-input:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); }
+.btn-add-section { height: 34px; padding: 0 0.85rem; background: none; color: #888; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.8rem; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 120ms, color 120ms; }
+.btn-add-section:hover { background: #f4f2ef; color: #555; }
+.section-hint { font-size: 0.75rem; color: #aaa; display: flex; align-items: center; gap: 0.3rem; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Form row Ã¢â€â‚¬Ã¢â€â‚¬ */
+.form-row { display: grid; grid-template-columns: 1fr 1.8fr auto auto; gap: 0.6rem; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.field label { font-size: 0.75rem; font-weight: 500; color: #888; }
+.field input { height: 36px; padding: 0 0.75rem; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.875rem; font-family: inherit; color: #1a1a18; background: #fafaf9; outline: none; transition: border-color 150ms, box-shadow 150ms; width: 100%; }
+.field input::placeholder { color: #bbb; }
+.field input:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Icon picker Ã¢â€â‚¬Ã¢â€â‚¬ */
+.icon-picker-wrap { display: flex; flex-direction: column; gap: 0.3rem; position: relative; z-index: 2; }
+.icon-picker-wrap.picker-active { z-index: 1800; }
+.icon-picker-wrap label { font-size: 0.75rem; font-weight: 500; color: #888; }
+.icon-trigger { height: 36px; padding: 0 0.65rem; border: 1px solid #e0ddd8; border-radius: 7px; background: #fafaf9; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.875rem; font-family: inherit; color: #bbb; transition: border-color 150ms, box-shadow 150ms; white-space: nowrap; min-width: 130px; }
+.icon-trigger:focus, .icon-trigger.open { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; outline: none; }
+.icon-trigger.selected { color: #1a1a18; }
+.icon-trigger img { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+.icon-trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.icon-clear { background: none; border: none; color: #ccc; cursor: pointer; padding: 0; display: flex; align-items: center; font-size: 1rem; flex-shrink: 0; line-height: 1; }
+.icon-clear:hover { color: #888; }
+.icon-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 340px; background: #fff; border: 1px solid #e0ddd8; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.12); z-index: 500; display: none; flex-direction: column; overflow: hidden; }
+.icon-dropdown.open { display: flex; }
+.picker-tabs { display: flex; border-bottom: 1px solid #f0efec; flex-shrink: 0; }
+.picker-tab { flex: 1; padding: 0.5rem 0.6rem; font-size: 0.75rem; font-weight: 500; font-family: inherit; background: none; border: none; color: #aaa; cursor: pointer; border-bottom: 2px solid transparent; transition: color 120ms, border-color 120ms; }
+.picker-tab.active { color: #01696f; border-bottom-color: #01696f; }
+.picker-tab-count { background: #ebe9e5; color: #888; font-size: 0.65rem; font-weight: 600; padding: 1px 5px; border-radius: 99px; margin-left: 4px; }
+.icon-search-wrap { padding: 0.6rem; border-bottom: 1px solid #f0efec; display: flex; align-items: center; gap: 0.4rem; }
+.icon-search-wrap svg { color: #bbb; flex-shrink: 0; }
+.icon-search { flex: 1; height: 32px; padding: 0 0.5rem; border: 1px solid #e0ddd8; border-radius: 6px; font-size: 0.825rem; font-family: inherit; outline: none; background: #fafaf9; transition: border-color 150ms; }
+.icon-search:focus { border-color: #01696f; box-shadow: 0 0 0 2px rgba(1,105,111,0.1); background: #fff; }
+.icon-count { padding: 0.3rem 0.6rem; font-size: 0.7rem; color: #aaa; border-bottom: 1px solid #f0efec; flex-shrink: 0; }
+.icon-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 0.5rem; max-height: 220px; overflow-y: auto; }
+.icon-option { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0.4rem 0.2rem; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: background 100ms, border-color 100ms; text-align: center; }
+.icon-option:hover { background: #f5f4f1; border-color: #e0ddd8; }
+.icon-option.active { background: #e8f4f3; border-color: #01696f; }
+.icon-option img { width: 20px; height: 20px; object-fit: contain; }
+.icon-option span { font-size: 0.55rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+.icon-no-results, .custom-empty { padding: 1.5rem; text-align: center; color: #aaa; font-size: 0.825rem; }
+.custom-empty a { color: #01696f; text-decoration: none; font-weight: 500; }
+input[name="icon"] { display: none; }
+
+.btn-primary { height: 36px; padding: 0 1rem; background: #01696f; color: #fff; border: none; border-radius: 7px; font-size: 0.875rem; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 150ms; display: flex; align-items: center; gap: 0.3rem; align-self: flex-end; }
+.btn-primary:hover { background: #0c4e54; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Links list Ã¢â€â‚¬Ã¢â€â‚¬ */
+.links-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.links-count { background: #ebe9e5; color: #888; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 99px; }
+.link-list { display: flex; flex-direction: column; gap: 0.4rem; overflow: visible; }
+
+/* Section row */
+.section-row { background: #f5f4f1; border: 1px solid #e4e2de; border-radius: 8px; padding: 0.55rem 1rem; display: flex; align-items: center; gap: 0.75rem; }
+.section-label-badge { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #888; background: #ebe9e5; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.section-row-title { flex: 1; font-size: 0.825rem; font-weight: 500; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.section-row-actions { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+
+/* Link card */
+.link-card { background: linear-gradient(180deg, #ffffff, #fcfbfa); border: 1px solid #e4e2de; border-radius: 9px; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; transition: box-shadow 150ms, border-color 150ms, transform 120ms; }
+.link-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: #d4d1cc; transform: translateY(-1px); }
+.link-card.inactive { opacity: 0.45; }
+.link-card-icon { width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.link-card-icon img { width: 20px; height: 20px; object-fit: contain; }
+.link-card-icon .no-icon { width: 20px; height: 20px; background: #ebe9e5; border-radius: 4px; }
+.drag-handle { color: #ccc; cursor: grab; flex-shrink: 0; display: flex; align-items: center; padding: 0 2px; }
+.drag-handle:active { cursor: grabbing; color: #aaa; }
+.link-info { flex: 1; min-width: 0; }
+.link-title { font-size: 0.875rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.link-url { font-size: 0.75rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.link-actions { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
+.toggle-form { display: flex; align-items: center; }
+.toggle-pill { display: flex; align-items: center; width: 34px; height: 18px; border-radius: 99px; background: #ddd; cursor: pointer; transition: background 200ms; border: none; padding: 2px; flex-shrink: 0; }
+.toggle-pill.on { background: #01696f; }
+.toggle-pill::after { content: ''; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 200ms; display: block; }
+.toggle-pill.on::after { transform: translateX(16px); }
+.icon-btn { background: none; border: none; color: #c5c3bf; cursor: pointer; padding: 0.3rem; border-radius: 6px; display: flex; align-items: center; transition: color 120ms, background 120ms; }
+.icon-btn:hover { color: #888; background: #f4f2ef; }
+.icon-btn.danger:hover { color: #b91c1c; background: #fef2f2; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Empty state Ã¢â€â‚¬Ã¢â€â‚¬ */
+.empty-state { text-align: center; padding: 3.5rem 2rem; color: #aaa; }
+.empty-state svg { margin: 0 auto 1rem; opacity: 0.25; }
+.empty-state h3 { font-size: 0.95rem; font-weight: 600; color: #555; margin-bottom: 0.35rem; }
+.empty-state p { font-size: 0.825rem; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Edit Modal Ã¢â€â‚¬Ã¢â€â‚¬ */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+.modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); overflow: visible; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.modal-title { font-size: 0.95rem; font-weight: 600; }
+.modal-close { background: none; border: none; color: #aaa; cursor: pointer; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 120ms, color 120ms; }
+.modal-close:hover { background: #f4f2ef; color: #333; }
+.modal-fields { display: flex; flex-direction: column; gap: 0.85rem; }
+.modal-fields .field input { height: 38px; font-size: 0.9rem; }
+.modal-actions { display: flex; gap: 0.5rem; margin-top: 1.25rem; justify-content: flex-end; }
+.btn-ghost { height: 36px; padding: 0 0.9rem; background: #f4f2ef; color: #555; border: none; border-radius: 7px; font-size: 0.875rem; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 120ms; }
+.btn-ghost:hover { background: #ebe9e5; }
+.modal-fields .icon-picker-wrap { position: relative; }
+.modal-fields .icon-trigger { min-width: unset; width: 100%; }
+.modal-fields .icon-dropdown { width: 100%; left: 0; right: 0; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Share modal Ã¢â€â‚¬Ã¢â€â‚¬ */
+.share-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: flex-end; justify-content: center; }
+.share-modal-overlay.open { display: flex; }
+.share-sheet { background: #fff; border-radius: 24px 24px 0 0; width: 100%; max-width: 480px; padding: 1.5rem 1.5rem 2.5rem; animation: slideUp 240ms cubic-bezier(0.16,1,0.3,1); }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.share-handle { width: 36px; height: 4px; background: #ddd; border-radius: 99px; margin: 0 auto 1.25rem; }
+.share-title { font-size: 1rem; font-weight: 600; text-align: center; margin-bottom: 1.25rem; }
+.share-url-box { display: flex; align-items: center; gap: 0.6rem; background: #f5f4f1; border-radius: 8px; padding: 0.6rem 0.85rem; margin-bottom: 1.25rem; }
+.share-url-text { flex: 1; font-size: 0.825rem; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-copy-btn { height: 30px; padding: 0 0.75rem; background: #01696f; color: #fff; border: none; border-radius: 6px; font-size: 0.775rem; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 120ms; flex-shrink: 0; }
+.share-copy-btn:hover { background: #0c4e54; }
+.share-platforms { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; scrollbar-width: none; }
+.share-platforms::-webkit-scrollbar { display: none; }
+.share-platform-btn { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; min-width: 60px; cursor: pointer; border: none; background: none; font-size: 0.72rem; color: #555; font-family: inherit; transition: opacity 150ms; }
+.share-platform-btn:hover { opacity: 0.7; }
+.share-platform-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Toast Ã¢â€â‚¬Ã¢â€â‚¬ */
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1a18; color: #fff; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.825rem; font-weight: 500; opacity: 0; transform: translateY(8px); transition: opacity 250ms, transform 250ms; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+.add-link-card, .add-section-card, .link-card, .section-row {
+    animation: itemIn 340ms ease both;
+}
+@keyframes itemIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 860px) { .form-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .main { padding: 1.25rem 1rem; max-width: 100%; } .form-row { grid-template-columns: 1fr; } .form-row .btn-primary { width: 100%; justify-content: center; } }
+{% endblock %}
+
+{% block content %}
+<script>
+const USER_ASSETS = [{% for asset in assets %}{"id":{{ asset.id }},"url":"{{ asset.url }}","label":"{{ asset.label|e }}"}{% if not loop.last %},{% endif %}{% endfor %}];
+const MY_PAGE_URL = window.location.origin + '/profile/{{ user.username }}';
+</script>
+
+<main class="main">
+    <div class="page-header">
+        <h1 class="page-title">My Links</h1>
+        <p class="page-subtitle">Manage what shows on your public page</p>
+    </div>
+
+    <!-- Top actions -->
+    <div class="top-actions">
+        <p class="section-label" style="margin-bottom:0">Add New Link</p>
+        <button class="btn-share-page" onclick="openShareModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share my page
+        </button>
+    </div>
+
+    <!-- Add Link form -->
+    <div class="add-link-card">
+        <form action="/dashboard/links/add" method="post" id="addForm">
+            <div class="form-row">
+                <div class="field">
+                    <label for="add_title">Label</label>
+                    <input type="text" id="add_title" name="title" placeholder="My Portfolio" required autocomplete="off">
+                </div>
+                <div class="field">
+                    <label for="add_url">URL</label>
+                    <input type="text" id="add_url" name="url" placeholder="https://yoursite.com" required autocomplete="off">
+                </div>
+                <div class="icon-picker-wrap" id="pickerWrap_add">
+                    <label>Icon</label>
+                    <button type="button" class="icon-trigger" id="iconTrigger_add" onclick="togglePicker('add')" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="icon-trigger-text" id="iconTriggerText_add">Choose icon</span>
+                    </button>
+                    <div class="icon-dropdown" id="iconDropdown_add" role="listbox">
+                        <div class="picker-tabs">
+                            <button type="button" class="picker-tab active" onclick="switchTab('add','brand',this)">Brand Icons</button>
+                            <button type="button" class="picker-tab" onclick="switchTab('add','custom',this)">My Icons <span class="picker-tab-count">{{ assets|length }}</span></button>
+                        </div>
+                        <div id="pickerPanel_add_brand">
+                            <div class="icon-search-wrap">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="icon-search" id="iconSearch_add" placeholder="Search iconsÃ¢â‚¬Â¦" oninput="filterIcons(this,'add')" autocomplete="off">
+                            </div>
+                            <div class="icon-count" id="iconCount_add"></div>
+                            <div class="icon-grid" id="iconGrid_add"></div>
+                        </div>
+                        <div id="pickerPanel_add_custom" style="display:none"><div class="icon-grid" id="customGrid_add"></div></div>
+                    </div>
+                    <input type="hidden" name="icon" id="iconValue_add">
+                </div>
+                <button type="submit" class="btn-primary">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Add Section form -->
+    <form action="/dashboard/links/add-section" method="post" class="add-section-card">
+        <span class="section-hint">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/></svg>
+            Section
+        </span>
+        <input type="text" class="add-section-input" name="title" placeholder="e.g. India Tour 2026" required autocomplete="off">
+        <button type="submit" class="btn-add-section">+ Add Section</button>
+    </form>
+
+    <!-- Links list -->
+    <div class="links-meta">
+        <p class="section-label" style="margin-bottom:0">Your Links</p>
+        <span class="links-count">{{ links|length }}</span>
+    </div>
+
+    {% if links %}
+    <div class="link-list" id="linkList">
+        {% for link in links %}
+
+        {% if link.is_section %}
+        <!-- Section divider row -->
+        <div class="section-row" data-id="{{ link.id }}" data-is-section="1">
+            <div class="drag-handle" title="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+            </div>
+            <span class="section-label-badge">Section</span>
+            <span class="section-row-title">{{ link.title }}</span>
+            <div class="section-row-actions">
+                <button type="button" class="icon-btn" title="Edit" onclick="openEdit({{ link.id }}, '{{ link.title|e }}', '', '', true)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <form action="/dashboard/links/{{ link.id }}/delete" method="post" onsubmit="return confirm('Delete this section?')">
+                    <button type="submit" class="icon-btn danger" title="Delete">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Regular link row -->
+        <div class="link-card {% if not link.is_active %}inactive{% endif %}" data-id="{{ link.id }}">
+            <div class="drag-handle" title="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+            </div>
+            <div class="link-card-icon">
+                {% if link.icon %}
+                    {% if link.icon.startswith('/static/') %}
+                    <img src="{{ link.icon }}" alt="icon" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                    <div class="no-icon" style="display:none"></div>
+                    {% else %}
+                    <img src="https://cdn.simpleicons.org/{{ link.icon }}" alt="{{ link.icon }}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                    <div class="no-icon" style="display:none"></div>
+                    {% endif %}
+                {% else %}
+                <div class="no-icon"></div>
+                {% endif %}
+            </div>
+            <div class="link-info">
+                <div class="link-title">{{ link.title }}</div>
+                <div class="link-url">{{ link.url }}</div>
+            </div>
+            <div class="link-actions">
+                <form class="toggle-form" action="/dashboard/links/{{ link.id }}/toggle" method="post">
+                    <button type="submit" class="toggle-pill {% if link.is_active %}on{% endif %}" title="{% if link.is_active %}Disable{% else %}Enable{% endif %}"></button>
+                </form>
+                <button type="button" class="icon-btn" title="Edit" onclick="openEdit({{ link.id }}, '{{ link.title|e }}', '{{ link.url|e }}', '{{ link.icon or '' }}', false)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button type="button" class="icon-btn" title="Copy trackable redirect link" onclick="copyRedirectLink({{ link.id }}, '{{ link.title|e }}')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                </button>
+                <form action="/dashboard/links/{{ link.id }}/delete" method="post" onsubmit="return confirm('Delete \'{{ link.title|e }}\'?')">
+                    <button type="submit" class="icon-btn danger" title="Delete">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <h3>No links yet</h3>
+        <p>Add your first link above to get started.</p>
+    </div>
+    {% endif %}
+</main>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">Edit</h2>
+            <button class="modal-close" onclick="closeEdit()" aria-label="Close">Ã¢Å“â€¢</button>
+        </div>
+        <form id="editForm" method="post">
+            <div class="modal-fields">
+                <div class="field"><label for="edit_title">Label</label><input type="text" id="edit_title" name="title" required autocomplete="off"></div>
+                <div id="urlFieldWrap" class="field"><label for="edit_url">URL</label><input type="text" id="edit_url" name="url" autocomplete="off"></div>
+                <div id="iconFieldWrap" class="icon-picker-wrap" style="display:none">
+                    <label>Icon</label>
+                    <button type="button" class="icon-trigger" id="iconTrigger_edit" onclick="togglePicker('edit')" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="icon-trigger-text" id="iconTriggerText_edit">Choose icon</span>
+                    </button>
+                    <div class="icon-dropdown" id="iconDropdown_edit" role="listbox">
+                        <div class="picker-tabs">
+                            <button type="button" class="picker-tab active" onclick="switchTab('edit','brand',this)">Brand Icons</button>
+                            <button type="button" class="picker-tab" onclick="switchTab('edit','custom',this)">My Icons <span class="picker-tab-count">{{ assets|length }}</span></button>
+                        </div>
+                        <div id="pickerPanel_edit_brand">
+                            <div class="icon-search-wrap">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" class="icon-search" id="iconSearch_edit" placeholder="Search iconsÃ¢â‚¬Â¦" oninput="filterIcons(this,'edit')" autocomplete="off">
+                            </div>
+                            <div class="icon-count" id="iconCount_edit"></div>
+                            <div class="icon-grid" id="iconGrid_edit"></div>
+                        </div>
+                        <div id="pickerPanel_edit_custom" style="display:none"><div class="icon-grid" id="customGrid_edit"></div></div>
+                    </div>
+                    <input type="hidden" name="icon" id="iconValue_edit">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-ghost" onclick="closeEdit()">Cancel</button>
+                <button type="submit" class="btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Share My Page Modal -->
+<div class="share-modal-overlay" id="shareModal" onclick="if(event.target===this)closeShareModal()">
+    <div class="share-sheet">
+        <div class="share-handle"></div>
+        <p class="share-title">Share your page</p>
+        <div class="share-url-box">
+            <span class="share-url-text" id="shareUrlText"></span>
+            <button class="share-copy-btn" onclick="copyPageUrl()">Copy</button>
+        </div>
+        <div class="share-platforms">
+            <button class="share-platform-btn" onclick="sharePageTo('whatsapp')">
+                <div class="share-platform-icon" style="background:#25d366;color:#fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.1 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652c1.75.943 3.717 1.444 5.71 1.447h.005c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.484-8.411z"/></svg></div>
+                WhatsApp
+            </button>
+            <button class="share-platform-btn" onclick="sharePageTo('twitter')">
+                <div class="share-platform-icon" style="background:#000;color:#fff"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div>
+                X / Twitter
+            </button>
+            <button class="share-platform-btn" onclick="sharePageTo('telegram')">
+                <div class="share-platform-icon" style="background:#2ca5e0;color:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></div>
+                Telegram
+            </button>
+            <button class="share-platform-btn" onclick="sharePageTo('instagram')">
+                <div class="share-platform-icon" style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div>
+                Instagram
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ALL_ICONS = ['github','twitter','instagram','youtube','linkedin','facebook','tiktok','snapchat','pinterest','reddit','tumblr','mastodon','bluesky','threads','twitch','discord','telegram','whatsapp','signal','wechat','line','viber','skype','bandcamp','soundcloud','spotify','shazam','netflix','primevideo','disneyplus','hulu','appletv','vimeo','bilibili','medium','substack','ghost','wordpress','blogger','squarespace','wix','webflow','framer','hashnode','devto','behance','dribbble','figma','sketch','adobecreativecloud','adobephotoshop','adobeillustrator','canva','blender','unity','stackoverflow','codepen','codesandbox','replit','gitlab','bitbucket','jira','notion','linear','asana','clickup','react','vue','angular','svelte','nextdotjs','python','javascript','typescript','rust','go','swift','kotlin','tailwindcss','bootstrap','amazonaws','googlecloud','microsoftazure','digitalocean','heroku','vercel','netlify','supabase','firebase','cloudflare','docker','kubernetes','mongodb','postgresql','mysql','redis','stripe','paypal','shopify','etsy','amazon','kofi','buymeacoffee','patreon','gumroad','slack','zoom','googlemeet','googledrive','dropbox','notion','evernote','steam','epicgames','playstation','xbox','nintendo','linktree','calendly','typeform','mailchimp','bitcoin','ethereum'].sort();
+let activePickerId = null;
+
+function buildGrid(pickerId, filter='') {
+    const grid=document.getElementById('iconGrid_'+pickerId), countEl=document.getElementById('iconCount_'+pickerId), current=document.getElementById('iconValue_'+pickerId).value;
+    const q=filter.trim().toLowerCase(), filtered=q?ALL_ICONS.filter(s=>s.includes(q)):ALL_ICONS, toShow=filtered.slice(0,80);
+    if(countEl) countEl.textContent=q?`${filtered.length} match${filtered.length!==1?'es':''}${filtered.length>80?' Ã¢â‚¬â€ showing 80':''}`:`${ALL_ICONS.length} icons Ã¢â‚¬â€ type to search`;
+    if(!grid) return;
+    if(toShow.length===0){grid.innerHTML=`<div class="icon-no-results">No icons found</div>`;return;}
+    grid.innerHTML=toShow.map(slug=>`<div class="icon-option ${slug===current?'active':''}" role="option" aria-selected="${slug===current}" onclick="selectIcon('${pickerId}','${slug}','',false)" title="${slug}"><img src="https://cdn.simpleicons.org/${slug}" alt="${slug}" loading="lazy" onerror="this.parentElement.style.display='none'"><span>${slug}</span></div>`).join('');
+}
+function filterIcons(input,pickerId){buildGrid(pickerId,input.value);}
+function switchTab(pickerId,tab,btn){
+    btn.closest('.picker-tabs').querySelectorAll('.picker-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');
+    document.getElementById(`pickerPanel_${pickerId}_brand`).style.display=tab==='brand'?'':'none';
+    document.getElementById(`pickerPanel_${pickerId}_custom`).style.display=tab==='custom'?'':'none';
+    if(tab==='custom')buildCustomGrid(pickerId);
+}
+function buildCustomGrid(pickerId){
+    const grid=document.getElementById('customGrid_'+pickerId), current=document.getElementById('iconValue_'+pickerId).value;
+    if(!grid)return;
+    if(!USER_ASSETS||USER_ASSETS.length===0){grid.innerHTML=`<div class="custom-empty">No custom icons yet.<br><a href="/assets" target="_blank">Upload icons -></a></div>`;return;}
+    grid.innerHTML=USER_ASSETS.map(a=>`<div class="icon-option ${a.url===current?'active':''}" role="option" onclick="selectIcon('${pickerId}','${a.url}','${a.label.replace(/'/g,"\\'")}',true)" title="${a.label}"><img src="${a.url}" alt="${a.label}" loading="lazy" onerror="this.parentElement.style.display='none'"><span>${a.label}</span></div>`).join('');
+}
+function setPickerActive(pickerId,isActive){
+    const wrap=document.getElementById('pickerWrap_'+pickerId)||document.querySelector('.icon-picker-wrap #iconTrigger_'+pickerId)?.closest('.icon-picker-wrap');
+    if(wrap) wrap.classList.toggle('picker-active', !!isActive);
+}
+function togglePicker(pickerId){
+    const dropdown=document.getElementById('iconDropdown_'+pickerId), trigger=document.getElementById('iconTrigger_'+pickerId), isOpen=dropdown.classList.contains('open');
+    if(activePickerId&&activePickerId!==pickerId){document.getElementById('iconDropdown_'+activePickerId).classList.remove('open');document.getElementById('iconTrigger_'+activePickerId).classList.remove('open');document.getElementById('iconTrigger_'+activePickerId).setAttribute('aria-expanded','false');setPickerActive(activePickerId,false);}
+    if(isOpen){dropdown.classList.remove('open');trigger.classList.remove('open');trigger.setAttribute('aria-expanded','false');setPickerActive(pickerId,false);activePickerId=null;}
+    else{dropdown.classList.add('open');trigger.classList.add('open');trigger.setAttribute('aria-expanded','true');setPickerActive(pickerId,true);activePickerId=pickerId;buildGrid(pickerId);const s=document.getElementById('iconSearch_'+pickerId);if(s){s.value='';setTimeout(()=>s.focus(),50);}}
+}
+function selectIcon(pickerId,value,labelOverride,isCustom){
+    document.getElementById('iconValue_'+pickerId).value=value;
+    const trigger=document.getElementById('iconTrigger_'+pickerId), textEl=document.getElementById('iconTriggerText_'+pickerId);
+    const imgSrc=isCustom?value:`https://cdn.simpleicons.org/${value}`, label=labelOverride||value;
+    trigger.classList.add('selected');
+    textEl.innerHTML=`<img src="${imgSrc}" alt="${label}" width="16" height="16" style="display:inline-block;vertical-align:middle;margin-right:4px">${label}`;
+    if(!trigger.querySelector('.icon-clear')){const btn=document.createElement('button');btn.type='button';btn.className='icon-clear';btn.title='Clear icon';btn.innerHTML='&times;';btn.onclick=e=>{e.stopPropagation();clearIcon(pickerId);};trigger.appendChild(btn);}
+    buildGrid(pickerId);
+    document.getElementById('iconDropdown_'+pickerId).classList.remove('open');trigger.classList.remove('open');trigger.setAttribute('aria-expanded','false');setPickerActive(pickerId,false);activePickerId=null;
+}
+function clearIcon(pickerId){
+    document.getElementById('iconValue_'+pickerId).value='';
+    const trigger=document.getElementById('iconTrigger_'+pickerId);trigger.classList.remove('selected');
+    document.getElementById('iconTriggerText_'+pickerId).textContent='Choose icon';
+    const btn=trigger.querySelector('.icon-clear');if(btn)btn.remove();
+}
+document.addEventListener('click',e=>{
+    if(!activePickerId)return;
+    const wrap=document.getElementById('pickerWrap_'+activePickerId)||document.querySelector('.icon-picker-wrap #iconTrigger_'+activePickerId)?.closest('.icon-picker-wrap');
+    if(wrap&&!wrap.contains(e.target)){document.getElementById('iconDropdown_'+activePickerId).classList.remove('open');document.getElementById('iconTrigger_'+activePickerId).classList.remove('open');document.getElementById('iconTrigger_'+activePickerId).setAttribute('aria-expanded','false');setPickerActive(activePickerId,false);activePickerId=null;}
+});
+
+function openEdit(id,title,url,icon,isSection){
+    document.getElementById('editForm').action=`/dashboard/links/${id}/edit`;
+    document.getElementById('edit_title').value=title;
+    const urlWrap=document.getElementById('urlFieldWrap'), iconWrap=document.getElementById('iconFieldWrap');
+    if(isSection){urlWrap.style.display='none';iconWrap.style.display='none';}
+    else{urlWrap.style.display='';iconWrap.style.display='';document.getElementById('edit_url').value=url;if(icon){const isCustom=icon.startsWith('/static/');const asset=isCustom?USER_ASSETS.find(a=>a.url===icon):null;selectIcon('edit',icon,asset?asset.label:'',isCustom);}else{clearIcon('edit');}}
+    document.getElementById('modalTitle').textContent=isSection?'Edit Section':'Edit Link';
+    document.getElementById('editModal').classList.add('open');setTimeout(()=>document.getElementById('edit_title').focus(),50);
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('open');if(activePickerId==='edit'){document.getElementById('iconDropdown_edit').classList.remove('open');setPickerActive('edit',false);activePickerId=null;}}
+document.getElementById('editModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEdit();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeEdit();closeShareModal();}});
+
+// Ã¢â€â‚¬Ã¢â€â‚¬ Drag to reorder Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+(function(){
+    const list=document.getElementById('linkList');if(!list)return;
+    let dragging=null;
+    list.querySelectorAll('.link-card, .section-row').forEach(card=>{
+        card.setAttribute('draggable',true);
+        card.addEventListener('dragstart',()=>{dragging=card;setTimeout(()=>{card.style.opacity='0.35';},0);});
+        card.addEventListener('dragend',()=>{card.style.opacity='';dragging=null;saveOrder();});
+        card.addEventListener('dragover',e=>{e.preventDefault();if(!dragging||dragging===card)return;const mid=card.getBoundingClientRect().top+card.offsetHeight/2;list.insertBefore(dragging,e.clientY<mid?card:card.nextSibling);});
+    });
+    function saveOrder(){const ids=[...list.querySelectorAll('[data-id]')].map(c=>parseInt(c.dataset.id));fetch('/dashboard/links/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:ids})});}
+})();
+
+// Ã¢â€â‚¬Ã¢â€â‚¬ Share My Page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+function openShareModal(){
+    document.getElementById('shareUrlText').textContent=MY_PAGE_URL;
+    document.getElementById('shareModal').classList.add('open');
+}
+function closeShareModal(){document.getElementById('shareModal').classList.remove('open');}
+async function logDashboardShare(platform, linkId=null, path=null){
+    try{
+        await fetch('/api/share',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({platform,linkid:linkId,owner_id:{{ user.id }},path:path||'/profile/{{ user.username }}'})
+        });
+    }catch(_){ }
+}
+async function copyRedirectLink(linkId, linkTitle){
+    const redirectUrl = `${window.location.origin}/l/${linkId}?ref=dashboard_share`;
+    await navigator.clipboard.writeText(redirectUrl);
+    await logDashboardShare('link_copy', linkId, redirectUrl);
+    showToast(`Trackable link copied for ${linkTitle}`);
+}
+async function copyPageUrl(){
+    await navigator.clipboard.writeText(MY_PAGE_URL);
+    await logDashboardShare('copy');
+    showToast('Link copied!');
+    closeShareModal();
+}
+function sharePageTo(platform){
+    const url=encodeURIComponent(MY_PAGE_URL), text=encodeURIComponent('{{ user.display_name or user.username }} - check out my links!');
+    const urls={whatsapp:`https://wa.me/?text=${text}%20${url}`,twitter:`https://twitter.com/intent/tweet?text=${text}&url=${url}`,telegram:`https://t.me/share/url?url=${url}&text=${text}`};
+    if(platform==='instagram'){
+        navigator.clipboard.writeText(MY_PAGE_URL).then(()=>showToast('Instagram opened in new tab. Link copied.'));
+        logDashboardShare('instagram');
+        window.open('https://www.instagram.com/','_blank');
+        closeShareModal();
+        return;
+    }
+    if(urls[platform])window.open(urls[platform],'_blank');
+    logDashboardShare(platform);
+    closeShareModal();
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+</script>
+{% endblock %}
+
+

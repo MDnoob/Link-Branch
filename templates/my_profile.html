@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+
+{% block title %}My Profile - Link Branch{% endblock %}
+
+{% block extra_styles %}
+.main { padding: 2rem 2.5rem; max-width: 860px; animation: fadeIn 360ms ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page-header { margin-bottom: 1.25rem; }
+.page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.page-subtitle { font-size: 0.84rem; color: #888; margin-top: 0.2rem; }
+.card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.1rem; margin-bottom: 0.85rem; }
+.card-title { font-size: 0.84rem; font-weight: 600; color: #444; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.field { margin-bottom: 0.8rem; }
+.field label { display: block; font-size: 0.78rem; font-weight: 500; color: #666; margin-bottom: 0.28rem; }
+.field input { width: 100%; height: 38px; border: 1px solid #ddd8cf; border-radius: 8px; padding: 0 0.7rem; font: inherit; font-size: 0.9rem; }
+.field input:focus { outline: none; border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.12); }
+.field input[readonly] { background: #f7f6f2; color: #888; }
+.btn { height: 38px; padding: 0 1rem; border: none; border-radius: 8px; background: #01696f; color: #fff; font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+.btn:hover { background: #0c4e54; }
+.btn-danger { background: #b91c1c; }
+.btn-danger:hover { background: #991b1b; }
+.notice, .error { border-radius: 8px; padding: 0.6rem 0.75rem; font-size: 0.82rem; margin-bottom: 0.8rem; }
+.notice { background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; }
+.error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.checks { background: #f7f6f2; border: 1px solid #ece8de; border-radius: 8px; padding: 0.55rem 0.7rem; margin: -0.1rem 0 0.7rem; }
+.checks p { font-size: 0.72rem; color: #706e68; margin-bottom: 0.3rem; }
+.checks ul { list-style: none; display: grid; gap: 0.2rem; }
+.checks li { font-size: 0.73rem; color: #9a9790; display: flex; gap: 0.3rem; align-items: center; }
+.checks li.ok { color: #166534; }
+.checks li span { width: 11px; text-align: center; font-weight: 700; }
+.danger-copy { font-size: 0.79rem; color: #a13636; margin-bottom: 0.8rem; }
+@media (max-width: 760px) { .main { padding: 1.2rem 1rem; } .row { grid-template-columns: 1fr; } }
+{% endblock %}
+
+{% block content %}
+<main class="main">
+    <div class="page-header">
+        <h1 class="page-title">My Profile</h1>
+        <p class="page-subtitle">Manage personal details, password, and account safety.</p>
+    </div>
+
+    {% if request.query_params.get('saved') %}
+    <div class="notice">Profile details updated.</div>
+    {% endif %}
+    {% if request.query_params.get('password_updated') %}
+    <div class="notice">Password updated successfully.</div>
+    {% endif %}
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if password_error %}
+    <div class="error">{{ password_error }}</div>
+    {% endif %}
+    {% if delete_error %}
+    <div class="error">{{ delete_error }}</div>
+    {% endif %}
+
+    <section class="card">
+        <h2 class="card-title">Personal Details</h2>
+        <form action="/my-profile" method="post">
+            <div class="row">
+                <div class="field">
+                    <label for="display_name">Display Name</label>
+                    <input type="text" id="display_name" name="display_name" value="{{ user.display_name or '' }}">
+                </div>
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" value="{{ user.username }}" readonly>
+                </div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                </div>
+                <div class="field">
+                    <label for="phone">Phone Number</label>
+                    <input type="text" id="phone" name="phone" value="{{ user.phone or '' }}" required>
+                </div>
+            </div>
+            <button type="submit" class="btn">Save details</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2 class="card-title">Reset Password</h2>
+        <form action="/my-profile/password" method="post">
+            <div class="field">
+                <label for="current_password">Current Password</label>
+                <input type="password" id="current_password" name="current_password" required>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" required oninput="updatePasswordChecks(this.value)">
+                </div>
+                <div class="field">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+            </div>
+            <div class="checks">
+                <p>Password requirements</p>
+                <ul>
+                    <li id="c_len"><span>•</span>At least 8 characters</li>
+                    <li id="c_upper"><span>•</span>One uppercase letter</li>
+                    <li id="c_lower"><span>•</span>One lowercase letter</li>
+                    <li id="c_digit"><span>•</span>One number</li>
+                    <li id="c_symbol"><span>•</span>One special character</li>
+                </ul>
+            </div>
+            <button type="submit" class="btn">Update password</button>
+        </form>
+    </section>
+
+    <section class="card" style="border-color:#fecaca;background:#fff8f8">
+        <h2 class="card-title" style="color:#b91c1c">Danger Zone</h2>
+        <p class="danger-copy">Deleting your account is permanent. All links, analytics, and assets will be removed.</p>
+        <form action="/my-profile/delete" method="post">
+            <div class="row">
+                <div class="field">
+                    <label for="delete_password">Password</label>
+                    <input type="password" id="delete_password" name="password" required>
+                </div>
+                <div class="field">
+                    <label for="confirm_text">Type <strong>delete</strong> to confirm</label>
+                    <input type="text" id="confirm_text" name="confirm_text" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-danger">Delete account permanently</button>
+        </form>
+    </section>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function setCheck(id, ok) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('ok', ok);
+    el.querySelector('span').textContent = ok ? '✓' : '•';
+}
+function updatePasswordChecks(value) {
+    const v = value || '';
+    setCheck('c_len', v.length >= 8);
+    setCheck('c_upper', /[A-Z]/.test(v));
+    setCheck('c_lower', /[a-z]/.test(v));
+    setCheck('c_digit', /\d/.test(v));
+    setCheck('c_symbol', /[^A-Za-z0-9]/.test(v));
+}
+</script>
+{% endblock %}

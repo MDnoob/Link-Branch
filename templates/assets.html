@@ -1,0 +1,160 @@
+{% extends "layout.html" %}
+
+{% block title %}My Assets — Link Branch{% endblock %}
+
+{% block extra_styles %}
+.main { padding: 2rem 2.5rem; max-width: 800px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.75rem; }
+.page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.page-subtitle { font-size: 0.825rem; color: #888; margin-top: 0.2rem; }
+.section-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 0.6rem; }
+.upload-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.75rem; }
+.upload-dropzone { border: 2px dashed #ddd; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 150ms, background 150ms; }
+.upload-dropzone:hover, .upload-dropzone.dragover { border-color: #01696f; background: #f0faf9; }
+.upload-dropzone svg { margin: 0 auto 0.75rem; color: #ccc; }
+.upload-dropzone p { font-size: 0.875rem; color: #888; }
+.upload-dropzone span { font-size: 0.75rem; color: #bbb; display: block; margin-top: 0.25rem; }
+.upload-dropzone strong { color: #01696f; }
+#fileInput { display: none; }
+.upload-meta { display: flex; gap: 0.6rem; margin-top: 0.75rem; align-items: flex-end; }
+.upload-meta input { flex: 1; height: 36px; padding: 0 0.75rem; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.875rem; font-family: inherit; outline: none; background: #fafaf9; transition: border-color 150ms; }
+.upload-meta input:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; }
+.btn-primary { height: 36px; padding: 0 1rem; background: #01696f; color: #fff; border: none; border-radius: 7px; font-size: 0.875rem; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 150ms; display: flex; align-items: center; gap: 0.3rem; }
+.btn-primary:hover { background: #0c4e54; }
+.upload-preview { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f5f4f1; border-radius: 8px; margin-top: 0.75rem; display: none; }
+.upload-preview img { width: 40px; height: 40px; object-fit: contain; border-radius: 6px; background: #fff; border: 1px solid #e0ddd8; padding: 4px; }
+.upload-preview-name { font-size: 0.825rem; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-preview-size { font-size: 0.75rem; color: #aaa; }
+.upload-error { font-size: 0.8rem; color: #b91c1c; margin-top: 0.5rem; display: none; }
+.assets-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.assets-count { background: #ebe9e5; color: #888; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 99px; }
+.assets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; }
+.asset-card { background: #fff; border: 1px solid #e4e2de; border-radius: 9px; padding: 0.75rem 0.6rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; position: relative; transition: box-shadow 150ms, border-color 150ms; }
+.asset-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-color: #d4d1cc; }
+.asset-thumb { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; }
+.asset-label { font-size: 0.72rem; color: #555; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+.asset-copy { font-size: 0.68rem; color: #01696f; font-weight: 500; cursor: pointer; background: none; border: none; font-family: inherit; padding: 2px 6px; border-radius: 4px; transition: background 120ms; }
+.asset-copy:hover { background: #e8f4f3; }
+.asset-delete { position: absolute; top: 5px; right: 5px; background: none; border: none; color: #ccc; cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: color 120ms, background 120ms; }
+.asset-delete:hover { color: #b91c1c; background: #fef2f2; }
+.empty-state { text-align: center; padding: 3rem 2rem; color: #aaa; }
+.empty-state svg { margin: 0 auto 1rem; opacity: 0.25; }
+.empty-state h3 { font-size: 0.95rem; font-weight: 600; color: #555; margin-bottom: 0.35rem; }
+.empty-state p { font-size: 0.825rem; }
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1a18; color: #fff; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.825rem; font-weight: 500; opacity: 0; transform: translateY(8px); transition: opacity 250ms, transform 250ms; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; transform: translateY(0); }
+@media (max-width: 640px) { .main { padding: 1.25rem 1rem; max-width: 100%; } }
+{% endblock %}
+
+{% block content %}
+<main class="main">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">My Assets</h1>
+            <p class="page-subtitle">Upload custom icons tied to your account</p>
+        </div>
+    </div>
+
+    <p class="section-label">Upload New Icon</p>
+    <div class="upload-card">
+        <div class="upload-dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Drop your icon here or <strong>click to browse</strong></p>
+            <span>PNG, JPG, SVG, WebP — max 2MB</span>
+        </div>
+        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.svg,.webp" onchange="previewFile(this)">
+        <div class="upload-preview" id="uploadPreview">
+            <img id="previewImg" src="" alt="Preview">
+            <div><div class="upload-preview-name" id="previewName"></div><div class="upload-preview-size" id="previewSize"></div></div>
+        </div>
+        <div class="upload-error" id="uploadError"></div>
+        <div class="upload-meta">
+            <input type="text" id="assetLabel" placeholder="Label (optional)">
+            <button class="btn-primary" onclick="uploadAsset()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Upload
+            </button>
+        </div>
+    </div>
+
+    <div class="assets-header">
+        <p class="section-label" style="margin-bottom:0">Your Icons</p>
+        <span class="assets-count" id="assetsCount">{{ assets|length }}</span>
+    </div>
+
+    {% if assets %}
+    <div class="assets-grid" id="assetsGrid">
+        {% for asset in assets %}
+        <div class="asset-card" id="asset-{{ asset.id }}">
+            <button class="asset-delete" title="Delete" onclick="deleteAsset({{ asset.id }})">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <img class="asset-thumb" src="{{ asset.url }}" alt="{{ asset.label }}" loading="lazy">
+            <div class="asset-label" title="{{ asset.label }}">{{ asset.label }}</div>
+            <button class="asset-copy" onclick="copyUrl('{{ asset.url }}')">Copy URL</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" id="emptyState">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 4-4 4 4 4-4 4 4"/></svg>
+        <h3>No custom icons yet</h3>
+        <p>Upload your first icon above to get started.</p>
+    </div>
+    {% endif %}
+</main>
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedFile = null;
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if(f){document.getElementById('fileInput').files=e.dataTransfer.files;previewFile(document.getElementById('fileInput'));}});
+
+function previewFile(input) {
+    const file = input.files[0]; if(!file)return; selectedFile=file;
+    const allowed=['image/png','image/jpeg','image/gif','image/svg+xml','image/webp'];
+    const err=document.getElementById('uploadError');
+    if(!allowed.includes(file.type)){err.textContent='File type not allowed. Use PNG, JPG, SVG or WebP.';err.style.display='block';return;}
+    if(file.size>2*1024*1024){err.textContent='File too large. Max 2MB.';err.style.display='block';return;}
+    err.style.display='none';
+    const preview=document.getElementById('uploadPreview'), img=document.getElementById('previewImg');
+    img.src=URL.createObjectURL(file);
+    document.getElementById('previewName').textContent=file.name;
+    document.getElementById('previewSize').textContent=(file.size/1024).toFixed(1)+' KB';
+    preview.style.display='flex';
+}
+async function uploadAsset() {
+    if(!selectedFile){showToast('Please select a file first');return;}
+    const label=document.getElementById('assetLabel').value.trim();
+    const form=new FormData(); form.append('file',selectedFile); form.append('label',label);
+    const btn=document.querySelector('.upload-meta .btn-primary'); btn.textContent='Uploading…'; btn.disabled=true;
+    try {
+        const res=await fetch('/dashboard/assets/upload',{method:'POST',body:form});
+        const data=await res.json();
+        if(data.error){showToast(data.error,true);return;}
+        const grid=document.getElementById('assetsGrid'), empty=document.getElementById('emptyState');
+        if(empty)empty.style.display='none';
+        const card=document.createElement('div'); card.className='asset-card'; card.id=`asset-${data.id}`;
+        card.innerHTML=`<button class="asset-delete" title="Delete" onclick="deleteAsset(${data.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><img class="asset-thumb" src="${data.url}" alt="${data.label}"><div class="asset-label">${data.label}</div><button class="asset-copy" onclick="copyUrl('${data.url}')">Copy URL</button>`;
+        if(grid) grid.prepend(card);
+        const countEl=document.getElementById('assetsCount'); countEl.textContent=parseInt(countEl.textContent||'0')+1;
+        selectedFile=null; document.getElementById('fileInput').value=''; document.getElementById('assetLabel').value=''; document.getElementById('uploadPreview').style.display='none';
+        showToast('Icon uploaded!');
+    } catch(e){showToast('Upload failed.',true);}
+    finally{btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Upload';btn.disabled=false;}
+}
+async function deleteAsset(id) {
+    if(!confirm('Delete this icon?'))return;
+    await fetch(`/dashboard/assets/${id}/delete`,{method:'POST'});
+    const card=document.getElementById(`asset-${id}`); if(card)card.remove();
+    const countEl=document.getElementById('assetsCount'); countEl.textContent=Math.max(0,parseInt(countEl.textContent||'1')-1);
+    showToast('Icon deleted');
+}
+function copyUrl(url){navigator.clipboard.writeText(url).then(()=>showToast('URL copied!'));}
+function showToast(msg,isError=false){const t=document.getElementById('toast');t.textContent=msg;t.style.background=isError?'#b91c1c':'#1a1a18';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+</script>
+{% endblock %}

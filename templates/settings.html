@@ -1,0 +1,381 @@
+{% extends "layout.html" %}
+
+{% block title %}My Page — Link Branch{% endblock %}
+
+{% block extra_styles %}
+.main { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 2rem 2rem 2rem 2.5rem; height: 100dvh; overflow: hidden; }
+.editor { overflow-y: auto; padding-right: 0.5rem; padding-bottom: 2rem; }
+.editor-header { margin-bottom: 1.5rem; }
+.page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.page-subtitle { font-size: 0.825rem; color: #888; margin-top: 0.2rem; }
+.save-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: #fff; border: 1px solid #e4e2de; border-radius: 10px; margin-bottom: 1.5rem; }
+.save-msg { font-size: 0.825rem; color: #01696f; font-weight: 500; display: flex; align-items: center; gap: 0.4rem; }
+.btn-primary { height: 36px; padding: 0 1.1rem; background: #01696f; color: #fff; border: none; border-radius: 7px; font-size: 0.875rem; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 150ms; display: flex; align-items: center; gap: 0.35rem; white-space: nowrap; text-decoration: none; }
+.btn-primary:hover { background: #0c4e54; }
+.btn-reset-all { height: 34px; padding: 0 0.9rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 7px; font-size: 0.8rem; font-weight: 500; font-family: inherit; cursor: pointer; transition: background 120ms; display: flex; align-items: center; gap: 0.3rem; }
+.btn-reset-all:hover { background: #fee2e2; }
+.btn-reset-section { height: 26px; padding: 0 0.6rem; background: none; color: #bbb; border: 1px solid #e4e2de; border-radius: 5px; font-size: 0.7rem; font-family: inherit; cursor: pointer; transition: color 120ms, border-color 120ms; white-space: nowrap; }
+.btn-reset-section:hover { color: #888; border-color: #bbb; }
+.settings-section { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.section-heading { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; }
+.field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.85rem; }
+.field:last-child { margin-bottom: 0; }
+.field label { font-size: 0.78rem; font-weight: 500; color: #666; }
+.field input[type=text],.field input[type=url],.field textarea,.field select { height: 36px; padding: 0 0.75rem; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.875rem; font-family: inherit; color: #1a1a18; background: #fafaf9; outline: none; transition: border-color 150ms, box-shadow 150ms; width: 100%; }
+.field textarea { height: 72px; padding: 0.5rem 0.75rem; resize: vertical; }
+.field select { cursor: pointer; }
+.field input:focus,.field textarea:focus,.field select:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; }
+.field input::placeholder { color: #bbb; }
+.field input[type=range] { width: 100%; accent-color: #01696f; cursor: pointer; height: 20px; }
+.char-count { font-size: 0.7rem; color: #bbb; text-align: right; }
+.color-row { display: flex; align-items: center; gap: 0.5rem; }
+.color-swatch { width: 36px; height: 36px; flex-shrink: 0; border: 1px solid #e0ddd8; border-radius: 7px; cursor: pointer; padding: 3px 4px; background: #fafaf9; }
+.hex-input { flex: 1; height: 36px; padding: 0 0.75rem; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.875rem; font-family: 'Courier New', monospace; color: #1a1a18; background: #fafaf9; outline: none; transition: border-color 150ms; }
+.hex-input:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; }
+.option-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.option-btn { padding: 0.4rem 0.8rem; border: 1.5px solid #e0ddd8; border-radius: 7px; font-size: 0.8rem; font-weight: 500; cursor: pointer; background: #fafaf9; color: #555; transition: border-color 120ms, background 120ms, color 120ms; }
+.option-btn.selected { border-color: #01696f; background: #e8f4f3; color: #01696f; }
+.option-btn:hover:not(.selected) { border-color: #bbb; background: #f5f4f1; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; }
+.toggle-label { font-size: 0.875rem; color: #444; }
+.toggle-sublabel { font-size: 0.75rem; color: #999; margin-top: 1px; }
+.toggle-switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track { position: absolute; inset: 0; background: #ddd; border-radius: 99px; cursor: pointer; transition: background 200ms; }
+.toggle-switch input:checked + .toggle-track { background: #01696f; }
+.toggle-track::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform 200ms; }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.gradient-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem; }
+.global-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.preview-col { display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 0; height: 100dvh; padding: 0 0 2rem; overflow: hidden; }
+.preview-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; display: flex; align-items: center; justify-content: space-between; padding-top: 0.25rem; }
+.preview-link { font-size: 0.75rem; color: #01696f; text-decoration: none; font-weight: 500; }
+.preview-link:hover { text-decoration: underline; }
+.phone-frame { flex: 1; position: relative; border-radius: 50px; background: #0a0a0a; box-shadow: 0 0 0 2px #2a2a2a, 0 0 0 4px #1a1a1a, 0 24px 60px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.06); overflow: hidden; display: flex; flex-direction: column; transform: scale(0.95); transform-origin: top center; margin: 0 auto; }
+.phone-frame::before { content: ''; position: absolute; right: -4px; top: 100px; width: 4px; height: 70px; background: linear-gradient(180deg,#3a3a3a 0%,#2a2a2a 50%,#3a3a3a 100%); border-radius: 0 3px 3px 0; z-index: 10; }
+.phone-screen { flex: 1; border-radius: 44px; margin: 6px; overflow: hidden; position: relative; background: #000; }
+.dynamic-island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 95px; height: 30px; background: #000; border-radius: 20px; z-index: 20; box-shadow: 0 0 0 1px rgba(255,255,255,0.08); }
+.phone-screen iframe { width: 100%; height: 100%; border: none; display: block; border-radius: 44px; }
+@media (max-width: 1100px) { .main { grid-template-columns: 1fr; } .preview-col { display: none; } }
+@media (max-width: 640px) { .main { padding: 1.25rem 1rem; height: auto; overflow: visible; } }
+{% endblock %}
+
+{% block content %}
+<div class="main">
+    <div class="editor">
+        <div class="editor-header">
+            <h1 class="page-title">My Page</h1>
+            <p class="page-subtitle">Customise how your public profile looks</p>
+        </div>
+
+        {% if request.query_params.get('saved') %}
+        <div class="save-bar">
+            <span class="save-msg"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Changes saved!</span>
+            <a href="/profile/{{ user.username }}" target="_blank" class="btn-primary">View live ↗</a>
+        </div>
+        {% endif %}
+
+        <form action="/settings" method="post" id="settingsForm">
+
+            <div class="global-actions">
+                <span style="font-size:0.78rem;color:#aaa">Preview updates live as you change settings</span>
+                <button type="button" class="btn-reset-all" onclick="resetAll()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    Reset all to defaults
+                </button>
+            </div>
+
+            <!-- Profile -->
+            <div class="settings-section">
+                <div class="section-header"><p class="section-heading">Profile</p><button type="button" class="btn-reset-section" onclick="resetSection('profile')">Reset</button></div>
+                <div class="two-col">
+                    <div class="field"><label for="display_name">Display Name</label><input type="text" id="display_name" name="display_name" value="{{ user.display_name or '' }}" maxlength="100" placeholder="{{ user.username }}" oninput="updatePreview()"></div>
+                    <div class="field"><label for="avatar_url">Photo URL</label><input type="text" id="avatar_url" name="avatar_url" value="{{ user.avatar_url or '' }}" placeholder="https://... or pick below" oninput="updatePreview()"></div>
+                </div>
+                <div class="field">
+                    <label for="bio">Bio <span class="char-count" id="bioCount">{{ (user.bio or '')|length }}/150</span></label>
+                    <textarea id="bio" name="bio" maxlength="150" placeholder="A short bio…" oninput="updatePreview(); document.getElementById('bioCount').textContent=this.value.length+'/150'">{{ user.bio or '' }}</textarea>
+                </div>
+                {% if assets %}<div class="field"><label>Pick photo from My Assets</label><div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.25rem">{% for asset in assets %}<img src="{{ asset.url }}" alt="{{ asset.label }}" title="{{ asset.label }}" width="36" height="36" style="border-radius:8px;cursor:pointer;border:2px solid transparent;object-fit:contain;background:#f5f4f1;transition:border-color 120ms" onclick="document.getElementById('avatar_url').value='{{ asset.url }}'; updatePreview()" onmouseover="this.style.borderColor='#01696f'" onmouseout="this.style.borderColor='transparent'">{% endfor %}</div></div>{% endif %}
+                <div class="field">
+                    <label>Avatar Shape</label>
+                    <div class="option-grid" id="avatarShapeGroup">{% for val, label in [('circle','Circle'), ('rounded','Rounded'), ('square','Square')] %}<button type="button" class="option-btn {% if (user.avatar_shape or 'circle') == val %}selected{% endif %}" data-group="avatarShapeGroup" data-field="avatar_shape" data-value="{{ val }}" onclick="selectOption(this)">{{ label }}</button>{% endfor %}</div>
+                    <input type="hidden" name="avatar_shape" id="avatar_shape" value="{{ user.avatar_shape or 'circle' }}">
+                </div>
+                <div class="field">
+                    <label>Image Fit</label>
+                    <div class="option-grid" id="avatarFitGroup">{% for val, label in [('cover','Cover'), ('contain','Contain')] %}<button type="button" class="option-btn {% if (user.avatar_fit or 'cover') == val %}selected{% endif %}" data-group="avatarFitGroup" data-field="avatar_fit" data-value="{{ val }}" onclick="selectOption(this)">{{ label }}</button>{% endfor %}</div>
+                    <input type="hidden" name="avatar_fit" id="avatar_fit" value="{{ user.avatar_fit or 'cover' }}">
+                </div>
+                <div class="field">
+                    <label>Image Scale - <span id="avatarScaleVal">{{ user.avatar_scale or 100 }}</span>%</label>
+                    <input type="range" id="avatar_scale_range" min="70" max="140" step="5" value="{{ user.avatar_scale or 100 }}" oninput="document.getElementById('avatarScaleVal').textContent=this.value; document.getElementById('avatar_scale').value=this.value; updatePreview()">
+                    <input type="hidden" name="avatar_scale" id="avatar_scale" value="{{ user.avatar_scale or 100 }}">
+                </div>
+            </div>
+
+            <!-- Background -->
+            <div class="settings-section">
+                <div class="section-header"><p class="section-heading">Background</p><button type="button" class="btn-reset-section" onclick="resetSection('background')">Reset</button></div>
+                <div class="field">
+                    <label>Type</label>
+                    <div class="option-grid" id="bgTypeGroup">{% for val, label in [('solid','Solid'), ('gradient','Gradient'), ('image','Image')] %}<button type="button" class="option-btn {% if (user.bg_type or 'solid') == val %}selected{% endif %}" data-group="bgTypeGroup" data-field="bg_type" data-value="{{ val }}" onclick="selectOption(this); showBgSection('{{ val }}')">{{ label }}</button>{% endfor %}</div>
+                    <input type="hidden" name="bg_type" id="bg_type" value="{{ user.bg_type or 'solid' }}">
+                </div>
+                <div id="bgSolid" style="display:{% if (user.bg_type or 'solid') == 'solid' %}block{% else %}none{% endif %}">
+                    <div class="field"><label>Background Colour</label><div class="color-row"><input type="color" class="color-swatch" id="bg_color_swatch" value="{{ user.bg_color or '#f7f6f2' }}" oninput="syncColor(this,'bg_color'); updatePreview()"><input type="text" class="hex-input" id="bg_color" name="bg_color" value="{{ user.bg_color or '#f7f6f2' }}" placeholder="#f7f6f2" oninput="syncHex(this,'bg_color_swatch'); updatePreview()"></div></div>
+                </div>
+                <div id="bgGradient" style="display:{% if user.bg_type == 'gradient' %}block{% else %}none{% endif %}">
+                    <div class="gradient-pickers">
+                        <div class="field"><label>Start Colour</label><div class="color-row"><input type="color" class="color-swatch" id="grad_start_swatch" value="#f7f6f2" oninput="syncColor(this,'grad_start'); buildGradient()"><input type="text" class="hex-input" id="grad_start" placeholder="#f7f6f2" value="#f7f6f2" oninput="syncHex(this,'grad_start_swatch'); buildGradient()"></div></div>
+                        <div class="field"><label>End Colour</label><div class="color-row"><input type="color" class="color-swatch" id="grad_end_swatch" value="#cedcd8" oninput="syncColor(this,'grad_end'); buildGradient()"><input type="text" class="hex-input" id="grad_end" placeholder="#cedcd8" value="#cedcd8" oninput="syncHex(this,'grad_end_swatch'); buildGradient()"></div></div>
+                    </div>
+                    <div class="field"><label>Direction — <span id="gradAngleVal">135</span>°</label><input type="range" id="grad_angle" min="0" max="360" step="15" value="135" oninput="document.getElementById('gradAngleVal').textContent=this.value; buildGradient()"></div>
+                    <input type="hidden" name="bg_gradient" id="bg_gradient" value="{{ user.bg_gradient or 'linear-gradient(135deg, #f7f6f2, #cedcd8)' }}">
+                </div>
+                <div id="bgImage" style="display:{% if user.bg_type == 'image' %}block{% else %}none{% endif %}">
+                    <div class="field"><label for="bg_image">Image URL</label><input type="text" id="bg_image" name="bg_image" value="{{ user.bg_image or '' }}" placeholder="https://..." oninput="updatePreview()"></div>
+                    {% if assets %}<div class="field"><label>Pick from My Assets</label><div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.25rem">{% for asset in assets %}<img src="{{ asset.url }}" alt="{{ asset.label }}" width="44" height="44" style="border-radius:6px;cursor:pointer;object-fit:cover;border:2px solid transparent;transition:border-color 120ms" onclick="document.getElementById('bg_image').value='{{ asset.url }}'; updatePreview()" onmouseover="this.style.borderColor='#01696f'" onmouseout="this.style.borderColor='transparent'">{% endfor %}</div></div>{% endif %}
+                    <div class="field"><label>Overlay Darkness — <span id="overlayVal">{{ user.bg_overlay or 0 }}</span>%</label><input type="range" id="bg_overlay_range" min="0" max="80" step="5" value="{{ user.bg_overlay or 0 }}" oninput="document.getElementById('overlayVal').textContent=this.value; document.getElementById('bg_overlay').value=this.value; updatePreview()"><input type="hidden" id="bg_overlay" name="bg_overlay" value="{{ user.bg_overlay or 0 }}"></div>
+                </div>
+            </div>
+
+            <!-- Island Card -->
+            <div class="settings-section">
+                <div class="section-header"><p class="section-heading">Island Card</p><button type="button" class="btn-reset-section" onclick="resetSection('island')">Reset</button></div>
+                <div class="field">
+                    <label>Style</label>
+                    <div class="option-grid" id="islandStyleGroup">{% for val, label in [('glass','Frosted Glass'), ('solid','Solid Color'), ('gradient','Gradient'), ('image','Image')] %}<button type="button" class="option-btn {% if (user.island_style or 'glass') == val %}selected{% endif %}" data-group="islandStyleGroup" data-field="island_style" data-value="{{ val }}" onclick="selectOption(this); showIslandSection('{{ val }}')">{{ label }}</button>{% endfor %}</div>
+                    <input type="hidden" name="island_style" id="island_style" value="{{ user.island_style or 'glass' }}">
+                </div>
+                <div id="islandSolid" style="display:{% if (user.island_style or 'glass') == 'solid' %}block{% else %}none{% endif %}">
+                    <div class="field"><label>Island Color</label><div class="color-row"><input type="color" class="color-swatch" id="island_color_swatch" value="{{ user.island_color or '#ffffff' }}" oninput="syncColor(this,'island_color'); updatePreview()"><input type="text" class="hex-input" id="island_color" name="island_color" value="{{ user.island_color or '#ffffff' }}" placeholder="#ffffff" oninput="syncHex(this,'island_color_swatch'); updatePreview()"></div></div>
+                </div>
+                <div id="islandGradient" style="display:{% if user.island_style == 'gradient' %}block{% else %}none{% endif %}">
+                    <div class="gradient-pickers">
+                        <div class="field"><label>Start Color</label><div class="color-row"><input type="color" class="color-swatch" id="island_grad_start_swatch" value="#ffffff" oninput="syncColor(this,'island_grad_start'); buildIslandGradient()"><input type="text" class="hex-input" id="island_grad_start" placeholder="#ffffff" value="#ffffff" oninput="syncHex(this,'island_grad_start_swatch'); buildIslandGradient()"></div></div>
+                        <div class="field"><label>End Color</label><div class="color-row"><input type="color" class="color-swatch" id="island_grad_end_swatch" value="#dbe7f5" oninput="syncColor(this,'island_grad_end'); buildIslandGradient()"><input type="text" class="hex-input" id="island_grad_end" placeholder="#dbe7f5" value="#dbe7f5" oninput="syncHex(this,'island_grad_end_swatch'); buildIslandGradient()"></div></div>
+                    </div>
+                    <div class="field"><label>Direction - <span id="islandGradAngleVal">135</span>deg</label><input type="range" id="island_grad_angle" min="0" max="360" step="15" value="135" oninput="document.getElementById('islandGradAngleVal').textContent=this.value; buildIslandGradient()"></div>
+                    <input type="hidden" name="island_gradient" id="island_gradient" value="{{ user.island_gradient or 'linear-gradient(135deg, #ffffff, #dbe7f5)' }}">
+                </div>
+                <div id="islandImage" style="display:{% if user.island_style == 'image' %}block{% else %}none{% endif %}">
+                    <div class="field"><label for="island_image">Island Image URL</label><input type="text" id="island_image" name="island_image" value="{{ user.island_image or '' }}" placeholder="https://..." oninput="updatePreview()"></div>
+                    {% if assets %}<div class="field"><label>Pick from My Assets</label><div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.25rem">{% for asset in assets %}<img src="{{ asset.url }}" alt="{{ asset.label }}" width="44" height="44" style="border-radius:6px;cursor:pointer;object-fit:cover;border:2px solid transparent;transition:border-color 120ms" onclick="document.getElementById('island_image').value='{{ asset.url }}'; updatePreview()" onmouseover="this.style.borderColor='#01696f'" onmouseout="this.style.borderColor='transparent'">{% endfor %}</div></div>{% endif %}
+                    <div class="field"><label>Image Overlay - <span id="islandOverlayVal">{{ user.island_overlay or 18 }}</span>%</label><input type="range" id="island_overlay_range" min="0" max="80" step="5" value="{{ user.island_overlay or 18 }}" oninput="document.getElementById('islandOverlayVal').textContent=this.value; document.getElementById('island_overlay').value=this.value; updatePreview()"><input type="hidden" id="island_overlay" name="island_overlay" value="{{ user.island_overlay or 18 }}"></div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="settings-section">
+                <div class="section-header"><p class="section-heading">Link Buttons</p><button type="button" class="btn-reset-section" onclick="resetSection('buttons')">Reset</button></div>
+                <div class="field"><label>Shape</label><div class="option-grid" id="btnStyleGroup">{% for val, label in [('pill','Pill'), ('rounded','Rounded'), ('sharp','Sharp')] %}<button type="button" class="option-btn {% if (user.btn_style or 'pill') == val %}selected{% endif %}" data-group="btnStyleGroup" data-field="btn_style" data-value="{{ val }}" onclick="selectOption(this)">{{ label }}</button>{% endfor %}</div><input type="hidden" name="btn_style" id="btn_style" value="{{ user.btn_style or 'pill' }}"></div>
+                <div class="field"><label>Fill Style</label><div class="option-grid" id="btnFillGroup">{% for val, label in [('filled','Filled'), ('outline','Outline'), ('shadow','Shadow')] %}<button type="button" class="option-btn {% if (user.btn_fill or 'filled') == val %}selected{% endif %}" data-group="btnFillGroup" data-field="btn_fill" data-value="{{ val }}" onclick="selectOption(this)">{{ label }}</button>{% endfor %}</div><input type="hidden" name="btn_fill" id="btn_fill" value="{{ user.btn_fill or 'filled' }}"></div>
+                <div class="two-col">
+                    <div class="field"><label>Button Colour</label><div class="color-row"><input type="color" class="color-swatch" id="btn_color_swatch" value="{{ user.btn_color or '#1a1a18' }}" oninput="syncColor(this,'btn_color'); updatePreview()"><input type="text" class="hex-input" id="btn_color" name="btn_color" value="{{ user.btn_color or '#1a1a18' }}" placeholder="#1a1a18" oninput="syncHex(this,'btn_color_swatch'); updatePreview()"></div></div>
+                    <div class="field"><label>Button Text Colour</label><div class="color-row"><input type="color" class="color-swatch" id="btn_text_swatch" value="{{ user.btn_text_color or '#ffffff' }}" oninput="syncColor(this,'btn_text_color'); updatePreview()"><input type="text" class="hex-input" id="btn_text_color" name="btn_text_color" value="{{ user.btn_text_color or '#ffffff' }}" placeholder="#ffffff" oninput="syncHex(this,'btn_text_swatch'); updatePreview()"></div></div>
+                </div>
+                <div class="field"><label>Hover Effect</label><div class="option-grid" id="btnHoverGroup">{% for val, label in [('lift','Lift'), ('glow','Glow'), ('darken','Darken'), ('none','None')] %}<button type="button" class="option-btn {% if (user.btn_hover or 'lift') == val %}selected{% endif %}" data-group="btnHoverGroup" data-field="btn_hover" data-value="{{ val }}" onclick="selectOption(this)">{{ label }}</button>{% endfor %}</div><input type="hidden" name="btn_hover" id="btn_hover" value="{{ user.btn_hover or 'lift' }}"></div>
+            </div>
+
+            <!-- Font & Text -->
+            <div class="settings-section">
+                <div class="section-header"><p class="section-heading">Font & Text</p><button type="button" class="btn-reset-section" onclick="resetSection('font')">Reset</button></div>
+                <div class="field">
+                    <label for="font_family">Font</label>
+                    <select id="font_family" name="font_family" onchange="updatePreview()">{% for f in ['Inter','Satoshi','Poppins','Playfair Display','Merriweather','DM Sans'] %}<option value="{{ f }}" {% if (user.font_family or 'Inter') == f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select>
+                </div>
+                <div class="field">
+                    <label>Text Size</label>
+                    <div class="option-grid" id="fontSizeGroup">{% for val, label in [('small','Small'), ('medium','Medium'), ('large','Large'), ('xlarge','X-Large')] %}<button type="button" class="option-btn {% if (user.font_size or 'medium') == val %}selected{% endif %}" data-group="fontSizeGroup" data-field="font_size" data-value="{{ val }}" onclick="selectOption(this)">{{ label }}</button>{% endfor %}</div>
+                    <input type="hidden" name="font_size" id="font_size" value="{{ user.font_size or 'medium' }}">
+                </div>
+                <div class="two-col">
+                    <div class="field"><label>Name Colour</label><div class="color-row"><input type="color" class="color-swatch" id="name_color_swatch" value="{{ user.text_name_color or '#1a1a18' }}" oninput="syncColor(this,'text_name_color'); updatePreview()"><input type="text" class="hex-input" id="text_name_color" name="text_name_color" value="{{ user.text_name_color or '#1a1a18' }}" placeholder="#1a1a18" oninput="syncHex(this,'name_color_swatch'); updatePreview()"></div></div>
+                    <div class="field"><label>Bio Colour</label><div class="color-row"><input type="color" class="color-swatch" id="bio_color_swatch" value="{{ user.text_bio_color or '#555555' }}" oninput="syncColor(this,'text_bio_color'); updatePreview()"><input type="text" class="hex-input" id="text_bio_color" name="text_bio_color" value="{{ user.text_bio_color or '#555555' }}" placeholder="#555555" oninput="syncHex(this,'bio_color_swatch'); updatePreview()"></div></div>
+                </div>
+            </div>
+
+            <!-- Other -->
+            <div class="settings-section">
+                <div class="section-header"><p class="section-heading">Other</p></div>
+                <div class="toggle-row"><div><div class="toggle-label">Show "Link Branch" branding</div><div class="toggle-sublabel">Small footer link on your public page</div></div><label class="toggle-switch"><input type="checkbox" name="show_branding" {% if user.show_branding %}checked{% endif %} onchange="updatePreview()"><span class="toggle-track"></span></label></div>
+            </div>
+
+            <button type="submit" class="btn-primary" style="width:100%;justify-content:center;height:44px;font-size:0.9rem;margin-top:0.5rem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save changes
+            </button>
+
+        </form>
+    </div>
+
+    <div class="preview-col">
+        <div class="preview-label">Live Preview <a href="/profile/{{ user.username }}" target="_blank" class="preview-link">Open →</a></div>
+        <div class="phone-frame"><div class="phone-screen"><div class="dynamic-island"></div><iframe id="previewFrame" src="/profile/{{ user.username }}?preview=1" title="Profile preview"></iframe></div></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let previewTimer = null;
+
+const DEFAULTS = {
+    display_name:'', bio:'', avatar_url:'', avatar_shape:'circle', avatar_fit:'cover', avatar_scale:100,
+    bg_type:'solid', bg_color:'#f7f6f2', bg_gradient:'linear-gradient(135deg, #f7f6f2, #cedcd8)',
+    bg_image:'', bg_overlay:0,
+    island_style:'glass', island_color:'#ffffff', island_gradient:'linear-gradient(135deg, #ffffff, #dbe7f5)', island_image:'', island_overlay:18,
+    btn_style:'pill', btn_fill:'filled', btn_color:'#1a1a18', btn_text_color:'#ffffff', btn_hover:'lift',
+    font_family:'Inter', font_size:'medium', text_name_color:'#1a1a18', text_bio_color:'#555555',
+    show_branding:true
+};
+
+function resetAll() {
+    if(!confirm('Reset ALL settings to defaults?')) return;
+    setField('display_name',DEFAULTS.display_name); setField('bio',DEFAULTS.bio); setField('avatar_url',DEFAULTS.avatar_url);
+    setColorField('bg_color','bg_color_swatch',DEFAULTS.bg_color);
+    setField('bg_gradient',DEFAULTS.bg_gradient); setField('bg_image',DEFAULTS.bg_image);
+    setColorField('btn_color','btn_color_swatch',DEFAULTS.btn_color);
+    setColorField('btn_text_color','btn_text_swatch',DEFAULTS.btn_text_color);
+    setColorField('text_name_color','name_color_swatch',DEFAULTS.text_name_color);
+    setColorField('text_bio_color','bio_color_swatch',DEFAULTS.text_bio_color);
+    selectOptionByValue('avatarShapeGroup','avatar_shape',DEFAULTS.avatar_shape);
+    selectOptionByValue('avatarFitGroup','avatar_fit',DEFAULTS.avatar_fit);
+    selectOptionByValue('bgTypeGroup','bg_type',DEFAULTS.bg_type);
+    selectOptionByValue('islandStyleGroup','island_style',DEFAULTS.island_style);
+    selectOptionByValue('btnStyleGroup','btn_style',DEFAULTS.btn_style);
+    selectOptionByValue('btnFillGroup','btn_fill',DEFAULTS.btn_fill);
+    selectOptionByValue('btnHoverGroup','btn_hover',DEFAULTS.btn_hover);
+    selectOptionByValue('fontSizeGroup','font_size',DEFAULTS.font_size);
+    document.getElementById('font_family').value = DEFAULTS.font_family;
+    document.querySelector('input[name=show_branding]').checked = DEFAULTS.show_branding;
+    setColorField('island_color','island_color_swatch',DEFAULTS.island_color);
+    setField('island_gradient',DEFAULTS.island_gradient);
+    setField('island_image',DEFAULTS.island_image);
+    setField('island_overlay',DEFAULTS.island_overlay);
+    applyIslandGradientPreset(DEFAULTS.island_gradient);
+    const islandOverlayRange = document.getElementById('island_overlay_range');
+    if(islandOverlayRange) islandOverlayRange.value = DEFAULTS.island_overlay;
+    const islandOverlayVal = document.getElementById('islandOverlayVal');
+    if(islandOverlayVal) islandOverlayVal.textContent = DEFAULTS.island_overlay;
+    setField('avatar_scale',DEFAULTS.avatar_scale);
+    const avatarScaleRange = document.getElementById('avatar_scale_range');
+    if(avatarScaleRange) avatarScaleRange.value = DEFAULTS.avatar_scale;
+    const avatarScaleVal = document.getElementById('avatarScaleVal');
+    if(avatarScaleVal) avatarScaleVal.textContent = DEFAULTS.avatar_scale;
+    showBgSection(DEFAULTS.bg_type);
+    showIslandSection(DEFAULTS.island_style);
+    updatePreview();
+}
+
+function resetSection(s) {
+    if(s==='profile') {
+        setField('display_name',DEFAULTS.display_name);
+        setField('bio',DEFAULTS.bio);
+        setField('avatar_url',DEFAULTS.avatar_url);
+        selectOptionByValue('avatarShapeGroup','avatar_shape',DEFAULTS.avatar_shape);
+        selectOptionByValue('avatarFitGroup','avatar_fit',DEFAULTS.avatar_fit);
+        setField('avatar_scale',DEFAULTS.avatar_scale);
+        const avatarScaleRange = document.getElementById('avatar_scale_range');
+        if(avatarScaleRange) avatarScaleRange.value = DEFAULTS.avatar_scale;
+        const avatarScaleVal = document.getElementById('avatarScaleVal');
+        if(avatarScaleVal) avatarScaleVal.textContent = DEFAULTS.avatar_scale;
+    }
+    else if(s==='background') { setColorField('bg_color','bg_color_swatch',DEFAULTS.bg_color); selectOptionByValue('bgTypeGroup','bg_type',DEFAULTS.bg_type); showBgSection(DEFAULTS.bg_type); }
+    else if(s==='island') {
+        selectOptionByValue('islandStyleGroup','island_style',DEFAULTS.island_style);
+        setColorField('island_color','island_color_swatch',DEFAULTS.island_color);
+        setField('island_gradient',DEFAULTS.island_gradient);
+        setField('island_image',DEFAULTS.island_image);
+        setField('island_overlay',DEFAULTS.island_overlay);
+        applyIslandGradientPreset(DEFAULTS.island_gradient);
+        const islandOverlayRange = document.getElementById('island_overlay_range');
+        if(islandOverlayRange) islandOverlayRange.value = DEFAULTS.island_overlay;
+        const islandOverlayVal = document.getElementById('islandOverlayVal');
+        if(islandOverlayVal) islandOverlayVal.textContent = DEFAULTS.island_overlay;
+        showIslandSection(DEFAULTS.island_style);
+    }
+    else if(s==='buttons') { selectOptionByValue('btnStyleGroup','btn_style',DEFAULTS.btn_style); selectOptionByValue('btnFillGroup','btn_fill',DEFAULTS.btn_fill); setColorField('btn_color','btn_color_swatch',DEFAULTS.btn_color); setColorField('btn_text_color','btn_text_swatch',DEFAULTS.btn_text_color); selectOptionByValue('btnHoverGroup','btn_hover',DEFAULTS.btn_hover); }
+    else if(s==='font') { document.getElementById('font_family').value=DEFAULTS.font_family; selectOptionByValue('fontSizeGroup','font_size',DEFAULTS.font_size); setColorField('text_name_color','name_color_swatch',DEFAULTS.text_name_color); setColorField('text_bio_color','bio_color_swatch',DEFAULTS.text_bio_color); }
+    updatePreview();
+}
+
+function setField(id, val) { const el=document.getElementById(id); if(el) el.value=val; }
+function setColorField(textId, swatchId, val) { setField(textId,val); setField(swatchId,val); }
+function selectOptionByValue(groupId, fieldId, val) {
+    document.querySelectorAll(`#${groupId} .option-btn`).forEach(b=>b.classList.toggle('selected', b.dataset.value===val));
+    const el=document.getElementById(fieldId); if(el) el.value=val;
+}
+function selectOption(btn) {
+    const group=btn.dataset.group, field=btn.dataset.field, val=btn.dataset.value;
+    document.querySelectorAll(`#${group} .option-btn`).forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById(field).value=val;
+    updatePreview();
+}
+function showBgSection(type) {
+    document.getElementById('bgSolid').style.display    = type==='solid'    ? 'block' : 'none';
+    document.getElementById('bgGradient').style.display = type==='gradient' ? 'block' : 'none';
+    document.getElementById('bgImage').style.display    = type==='image'    ? 'block' : 'none';
+}
+function showIslandSection(type) {
+    const solid = document.getElementById('islandSolid');
+    const gradient = document.getElementById('islandGradient');
+    const image = document.getElementById('islandImage');
+    if(solid) solid.style.display = type==='solid' ? 'block' : 'none';
+    if(gradient) gradient.style.display = type==='gradient' ? 'block' : 'none';
+    if(image) image.style.display = type==='image' ? 'block' : 'none';
+}
+function buildGradient() {
+    const start=document.getElementById('grad_start').value||'#f7f6f2', end=document.getElementById('grad_end').value||'#cedcd8', angle=document.getElementById('grad_angle').value||'135';
+    document.getElementById('bg_gradient').value=`linear-gradient(${angle}deg, ${start}, ${end})`;
+    updatePreview();
+}
+(function initGradient() {
+    const saved=document.getElementById('bg_gradient').value;
+    if(!saved) return;
+    const match=saved.match(/linear-gradient\((\d+)deg,\s*(#[0-9a-f]{3,6}),\s*(#[0-9a-f]{3,6})\)/i);
+    if(match) { document.getElementById('grad_angle').value=match[1]; document.getElementById('gradAngleVal').textContent=match[1]; document.getElementById('grad_start').value=match[2]; document.getElementById('grad_start_swatch').value=match[2]; document.getElementById('grad_end').value=match[3]; document.getElementById('grad_end_swatch').value=match[3]; }
+})();
+function buildIslandGradient() {
+    const start=document.getElementById('island_grad_start').value||'#ffffff', end=document.getElementById('island_grad_end').value||'#dbe7f5', angle=document.getElementById('island_grad_angle').value||'135';
+    document.getElementById('island_gradient').value=`linear-gradient(${angle}deg, ${start}, ${end})`;
+    updatePreview();
+}
+function applyIslandGradientPreset(saved) {
+    const raw = saved || 'linear-gradient(135deg, #ffffff, #dbe7f5)';
+    const match=raw.match(/linear-gradient\((\d+)deg,\s*(#[0-9a-f]{3,6}),\s*(#[0-9a-f]{3,6})\)/i);
+    const angle = match ? match[1] : '135';
+    const start = match ? match[2] : '#ffffff';
+    const end = match ? match[3] : '#dbe7f5';
+    document.getElementById('island_grad_angle').value=angle;
+    document.getElementById('islandGradAngleVal').textContent=angle;
+    document.getElementById('island_grad_start').value=start;
+    document.getElementById('island_grad_start_swatch').value=start;
+    document.getElementById('island_grad_end').value=end;
+    document.getElementById('island_grad_end_swatch').value=end;
+    document.getElementById('island_gradient').value=`linear-gradient(${angle}deg, ${start}, ${end})`;
+}
+(function initIslandGradient() {
+    const saved=document.getElementById('island_gradient').value;
+    applyIslandGradientPreset(saved);
+})();
+function syncColor(swatch, textId) { document.getElementById(textId).value=swatch.value; }
+function syncHex(input, swatchId) { const val=input.value.trim(); if(/^#[0-9a-f]{6}$/i.test(val)) document.getElementById(swatchId).value=val; }
+function updatePreview() {
+    clearTimeout(previewTimer);
+    previewTimer=setTimeout(()=>{
+        const form=document.getElementById('settingsForm'), data=new FormData(form), params=new URLSearchParams();
+        for(const[k,v] of data.entries()) params.append(k,v);
+        const brandingInput = form.querySelector('input[name="show_branding"]');
+        params.set('show_branding', brandingInput && brandingInput.checked ? 'on' : 'off');
+        params.set('preview','1');
+        params.set('_pv', Date.now().toString());
+        document.getElementById('previewFrame').src=`/profile/{{ user.username }}?${params.toString()}`;
+    }, 350);
+}
+</script>
+{% endblock %}

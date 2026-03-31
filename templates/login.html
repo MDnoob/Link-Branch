@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Branch - Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(1,105,111,0.2), transparent 30%),
+                radial-gradient(circle at 85% 80%, rgba(42,87,255,0.15), transparent 32%),
+                linear-gradient(160deg, #f8f7f4 0%, #ece8e1 100%);
+            font-family: 'Space Grotesk', system-ui, sans-serif;
+            color: #1d1d1b;
+            padding: 1rem;
+        }
+        .card {
+            width: min(100%, 460px);
+            border-radius: 22px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255,255,255,0.86);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+            padding: 1.5rem;
+            animation: popIn 420ms cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes popIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .brand { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+        .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg,#01696f,#0c4e54); display: grid; place-items: center; color: #fff; font-weight: 700; }
+        h1 { font-size: 1.5rem; line-height: 1.15; letter-spacing: -0.02em; }
+        .subtitle { color: #6f6d69; font-size: 0.88rem; margin: 0.4rem 0 1.1rem; }
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; }
+        .tab { border: 1px solid #d8d5cf; border-radius: 10px; height: 38px; background: #fff; color: #666; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: 140ms; }
+        .tab.active { background: #01696f; border-color: #01696f; color: #fff; }
+        .notice, .error {
+            border-radius: 10px; padding: 0.65rem 0.75rem; font-size: 0.84rem; margin-bottom: 0.8rem;
+        }
+        .notice { background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        form { animation: fadeForm 180ms ease; }
+        @keyframes fadeForm { from { opacity: 0; } to { opacity: 1; } }
+        .hidden { display: none; }
+        label { display: block; font-size: 0.78rem; font-weight: 600; color: #53514c; margin-bottom: 0.25rem; }
+        input {
+            width: 100%; height: 40px; border-radius: 10px; border: 1px solid #ddd8cf;
+            padding: 0 0.75rem; background: #fff; font: inherit; font-size: 0.93rem;
+            margin-bottom: 0.8rem; transition: border-color 120ms, box-shadow 120ms;
+        }
+        input:focus { outline: none; border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.12); }
+        .meta-row { display: flex; justify-content: flex-end; margin-top: -0.4rem; margin-bottom: 0.8rem; }
+        .link-mini { font-size: 0.76rem; color: #01696f; text-decoration: none; font-weight: 600; }
+        .link-mini:hover { text-decoration: underline; }
+        .btn {
+            width: 100%; height: 42px; border: none; border-radius: 10px;
+            background: #01696f; color: #fff; font: inherit; font-weight: 700;
+            cursor: pointer; transition: background 140ms, transform 120ms;
+        }
+        .btn:hover { background: #0c4e54; }
+        .btn:active { transform: translateY(1px); }
+        .checks { background: #f7f6f2; border: 1px solid #ece8de; border-radius: 10px; padding: 0.6rem 0.75rem; margin: -0.2rem 0 0.8rem; }
+        .checks p { font-size: 0.72rem; color: #706e68; margin-bottom: 0.35rem; }
+        .checks ul { list-style: none; display: grid; gap: 0.25rem; }
+        .checks li { font-size: 0.74rem; color: #9a9790; display: flex; gap: 0.35rem; align-items: center; }
+        .checks li.ok { color: #166534; }
+        .checks li span { width: 11px; text-align: center; font-weight: 700; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="brand">
+        <div class="brand-mark">+</div>
+        <h1>Link Branch</h1>
+    </div>
+    <p class="subtitle">Your personal link hub</p>
+
+    <div class="tabs">
+        <button class="tab {% if not show_register %}active{% endif %}" type="button" onclick="showTab('login')">Login</button>
+        <button class="tab {% if show_register %}active{% endif %}" type="button" onclick="showTab('register')">Register</button>
+    </div>
+
+    {% if success %}
+    <div class="notice">{{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form id="loginForm" action="/login" method="post" class="{% if show_register %}hidden{% endif %}">
+        <label for="login_username">Username</label>
+        <input type="text" id="login_username" name="username" placeholder="your_username" required oninput="this.value=this.value.toLowerCase()">
+
+        <label for="login_password">Password</label>
+        <input type="password" id="login_password" name="password" placeholder="Enter password" required>
+        <div class="meta-row"><a class="link-mini" href="/forgot-password">Forgot password?</a></div>
+        <button type="submit" class="btn">Sign in</button>
+    </form>
+
+    <form id="registerForm" action="/register" method="post" class="{% if not show_register %}hidden{% endif %}">
+        <label for="reg_username">Username (lowercase)</label>
+        <input type="text" id="reg_username" name="username" placeholder="your_username" required oninput="this.value=this.value.toLowerCase()">
+
+        <label for="reg_email">Email</label>
+        <input type="email" id="reg_email" name="email" placeholder="you@example.com" required>
+
+        <label for="reg_phone">Phone Number</label>
+        <input type="text" id="reg_phone" name="phone" placeholder="+919999999999" required>
+
+        <label for="reg_password">Password</label>
+        <input type="password" id="reg_password" name="password" placeholder="Create password" required oninput="updatePasswordChecks(this.value)">
+
+        <div class="checks">
+            <p>Password requirements</p>
+            <ul>
+                <li id="c_len"><span>•</span>At least 8 characters</li>
+                <li id="c_upper"><span>•</span>One uppercase letter</li>
+                <li id="c_lower"><span>•</span>One lowercase letter</li>
+                <li id="c_digit"><span>•</span>One number</li>
+                <li id="c_symbol"><span>•</span>One special character</li>
+            </ul>
+        </div>
+
+        <button type="submit" class="btn">Create account</button>
+    </form>
+</div>
+
+<script>
+function showTab(tab) {
+    document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+}
+
+function setCheck(id, ok) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('ok', ok);
+    el.querySelector('span').textContent = ok ? '✓' : '•';
+}
+
+function updatePasswordChecks(value) {
+    const v = value || '';
+    setCheck('c_len', v.length >= 8);
+    setCheck('c_upper', /[A-Z]/.test(v));
+    setCheck('c_lower', /[a-z]/.test(v));
+    setCheck('c_digit', /\d/.test(v));
+    setCheck('c_symbol', /[^A-Za-z0-9]/.test(v));
+}
+</script>
+</body>
+</html>
