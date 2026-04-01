@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import desc, func
+from sqlalchemy import and_, case, desc, func, or_
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -13,6 +13,7 @@ from routes.auth import get_current_user
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+REDIRECT_SOURCES = ("public_redirect", "extra_redirect")
 
 
 def _safe_int(value, default=None):
@@ -70,6 +71,31 @@ def _geo_context(request: Request) -> tuple[str | None, str | None]:
     return (country or None, city or None)
 
 
+def _normalize_share_platform(value: str | None) -> str:
+    platform = (value or "unknown").strip().lower()[:50]
+    if platform == "link_copy":
+        return "copy"
+    return platform or "unknown"
+
+
+def _normalize_click_source(payload: dict) -> str:
+    source = (
+        str(
+            payload.get("source")
+            or payload.get("click_source")
+            or payload.get("ref")
+            or "profile_button"
+        )
+        .strip()
+        .lower()
+    )
+    if source in {"redirect", "dashboard_share"}:
+        return "public_redirect"
+    if source in {"share", "profile_button", "public_redirect", "extra_redirect"}:
+        return source
+    return source[:40] or "profile_button"
+
+
 def _resolve_owner_id(db: Session, request: Request, payload: dict) -> int | None:
     owner_id = _safe_int(payload.get("owner_id"))
     if owner_id and db.query(User.id).filter(User.id == owner_id).first():
@@ -112,7 +138,7 @@ async def api_share(request: Request, db: Session = Depends(get_db)):
     event = ShareEvent(
         user_id=owner_id,
         link_id=_safe_int(payload.get("linkid")) or _safe_int(payload.get("link_id")),
-        platform=(str(payload.get("platform") or "unknown").strip().lower()[:50] or "unknown"),
+        platform=_normalize_share_platform(payload.get("platform")),
         path=(str(payload.get("path") or "")[:500] or None),
     )
     db.add(event)
@@ -153,6 +179,7 @@ async def api_click(request: Request, db: Session = Depends(get_db)):
         device_type=_device_type(user_agent),
         country=payload_country or country,
         city=payload_city or city,
+        click_source=_normalize_click_source(payload),
     )
     db.add(event)
     try:
@@ -176,7 +203,22 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
     else:
         days = max(7, min(365, _safe_int(request.session.get("analytics_days"), days)))
 
+    tab = (request.query_params.get("tab") or request.session.get("analytics_tab") or "overview").strip().lower()
+    if tab not in {"overview", "redirects"}:
+        tab = "overview"
+    request.session["analytics_tab"] = tab
+
     since = datetime.utcnow() - timedelta(days=days)
+    normalized_ref = func.lower(func.coalesce(LinkClick.ref, ""))
+    overview_filter = or_(
+        LinkClick.click_source == "profile_button",
+        and_(LinkClick.click_source.is_(None), normalized_ref == "profile_button"),
+    )
+    redirect_filter = or_(
+        LinkClick.click_source.in_(REDIRECT_SOURCES),
+        and_(LinkClick.click_source.is_(None), normalized_ref != "profile_button"),
+    )
+    active_click_filter = redirect_filter if tab == "redirects" else overview_filter
 
     total_views = (
         db.query(func.count(ProfileView.id))
@@ -195,9 +237,43 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
         .scalar()
         or 0
     )
-    total_clicks = (
+
+    profile_clicks = (
         db.query(func.count(LinkClick.id))
-        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since)
+        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, overview_filter)
+        .scalar()
+        or 0
+    )
+    redirect_clicks = (
+        db.query(func.count(LinkClick.id))
+        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, redirect_filter)
+        .scalar()
+        or 0
+    )
+    active_clicks = int(redirect_clicks if tab == "redirects" else profile_clicks)
+    total_clicks = int(profile_clicks) + int(redirect_clicks)
+
+    redirect_unique_visitors = (
+        db.query(func.count(func.distinct(LinkClick.viewer_ip)))
+        .filter(
+            LinkClick.user_id == user.id,
+            LinkClick.created_at >= since,
+            redirect_filter,
+            LinkClick.viewer_ip.isnot(None),
+            LinkClick.viewer_ip != "",
+        )
+        .scalar()
+        or 0
+    )
+    active_unique_clicks = (
+        db.query(func.count(func.distinct(LinkClick.viewer_ip)))
+        .filter(
+            LinkClick.user_id == user.id,
+            LinkClick.created_at >= since,
+            active_click_filter,
+            LinkClick.viewer_ip.isnot(None),
+            LinkClick.viewer_ip != "",
+        )
         .scalar()
         or 0
     )
@@ -215,20 +291,36 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
             func.count(LinkClick.id).label("clicks"),
         )
         .outerjoin(Link, Link.id == LinkClick.link_id)
-        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since)
+        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, overview_filter)
         .group_by(LinkClick.link_id, Link.title)
         .order_by(desc("clicks"))
         .limit(8)
         .all()
     )
+    redirect_top_links = (
+        db.query(
+            LinkClick.link_id,
+            Link.title,
+            LinkClick.destination_url,
+            func.count(LinkClick.id).label("clicks"),
+        )
+        .outerjoin(Link, Link.id == LinkClick.link_id)
+        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, redirect_filter)
+        .group_by(LinkClick.link_id, Link.title, LinkClick.destination_url)
+        .order_by(desc("clicks"))
+        .limit(12)
+        .all()
+    )
 
+    platform_base = func.lower(func.coalesce(ShareEvent.platform, "unknown"))
+    platform_expr = case((platform_base == "link_copy", "copy"), else_=platform_base)
     share_platforms = (
         db.query(
-            ShareEvent.platform,
+            platform_expr.label("platform"),
             func.count(ShareEvent.id).label("count"),
         )
         .filter(ShareEvent.user_id == user.id, ShareEvent.created_at >= since)
-        .group_by(ShareEvent.platform)
+        .group_by(platform_expr)
         .order_by(desc("count"))
         .limit(8)
         .all()
@@ -243,74 +335,79 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
         .group_by(func.date(ProfileView.created_at))
         .all()
     )
-
     clicks_rows = (
         db.query(
             func.date(LinkClick.created_at).label("d"),
             func.count(LinkClick.id).label("c"),
         )
-        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since)
+        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, active_click_filter)
         .group_by(func.date(LinkClick.created_at))
         .all()
     )
-
-    shares_rows = (
-        db.query(
-            func.date(ShareEvent.created_at).label("d"),
-            func.count(ShareEvent.id).label("c"),
+    shares_rows = []
+    if tab == "overview":
+        shares_rows = (
+            db.query(
+                func.date(ShareEvent.created_at).label("d"),
+                func.count(ShareEvent.id).label("c"),
+            )
+            .filter(ShareEvent.user_id == user.id, ShareEvent.created_at >= since)
+            .group_by(func.date(ShareEvent.created_at))
+            .all()
         )
-        .filter(ShareEvent.user_id == user.id, ShareEvent.created_at >= since)
-        .group_by(func.date(ShareEvent.created_at))
-        .all()
-    )
 
     views_by_day = {r.d: int(r.c) for r in views_rows}
     clicks_by_day = {r.d: int(r.c) for r in clicks_rows}
     shares_by_day = {r.d: int(r.c) for r in shares_rows}
-    trend_days = []
     trend_labels = []
     trend_views = []
     trend_clicks = []
     trend_shares = []
     for i in range(days - 1, -1, -1):
         day = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
-        day_views = views_by_day.get(day, 0)
-        day_clicks = clicks_by_day.get(day, 0)
-        day_shares = shares_by_day.get(day, 0)
-        trend_days.append({"day": day, "views": day_views, "clicks": day_clicks, "shares": day_shares})
         trend_labels.append(day)
-        trend_views.append(day_views)
-        trend_clicks.append(day_clicks)
-        trend_shares.append(day_shares)
+        trend_views.append(views_by_day.get(day, 0) if tab == "overview" else 0)
+        trend_clicks.append(clicks_by_day.get(day, 0))
+        trend_shares.append(shares_by_day.get(day, 0) if tab == "overview" else 0)
 
-    view_ref_rows = (
-        db.query(
-            ProfileView.referrer_domain,
-            func.count(ProfileView.id).label("count"),
+    if tab == "overview":
+        view_ref_rows = (
+            db.query(ProfileView.referrer_domain, func.count(ProfileView.id).label("count"))
+            .filter(
+                ProfileView.user_id == user.id,
+                ProfileView.created_at >= since,
+                ProfileView.referrer_domain.isnot(None),
+                ProfileView.referrer_domain != "",
+            )
+            .group_by(ProfileView.referrer_domain)
+            .all()
         )
-        .filter(
-            ProfileView.user_id == user.id,
-            ProfileView.created_at >= since,
-            ProfileView.referrer_domain.isnot(None),
-            ProfileView.referrer_domain != "",
+        click_ref_rows = (
+            db.query(LinkClick.referrer_domain, func.count(LinkClick.id).label("count"))
+            .filter(
+                LinkClick.user_id == user.id,
+                LinkClick.created_at >= since,
+                overview_filter,
+                LinkClick.referrer_domain.isnot(None),
+                LinkClick.referrer_domain != "",
+            )
+            .group_by(LinkClick.referrer_domain)
+            .all()
         )
-        .group_by(ProfileView.referrer_domain)
-        .all()
-    )
-    click_ref_rows = (
-        db.query(
-            LinkClick.referrer_domain,
-            func.count(LinkClick.id).label("count"),
+    else:
+        view_ref_rows = []
+        click_ref_rows = (
+            db.query(LinkClick.referrer_domain, func.count(LinkClick.id).label("count"))
+            .filter(
+                LinkClick.user_id == user.id,
+                LinkClick.created_at >= since,
+                redirect_filter,
+                LinkClick.referrer_domain.isnot(None),
+                LinkClick.referrer_domain != "",
+            )
+            .group_by(LinkClick.referrer_domain)
+            .all()
         )
-        .filter(
-            LinkClick.user_id == user.id,
-            LinkClick.created_at >= since,
-            LinkClick.referrer_domain.isnot(None),
-            LinkClick.referrer_domain != "",
-        )
-        .group_by(LinkClick.referrer_domain)
-        .all()
-    )
     ref_counts: dict[str, int] = {}
     for domain, count in list(view_ref_rows) + list(click_ref_rows):
         if not domain:
@@ -318,52 +415,71 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
         ref_counts[domain] = ref_counts.get(domain, 0) + int(count or 0)
     top_referrers = sorted(ref_counts.items(), key=lambda x: x[1], reverse=True)[:8]
 
-    view_device_rows = (
-        db.query(
-            ProfileView.device_type,
-            func.count(ProfileView.id).label("count"),
+    if tab == "overview":
+        view_device_rows = (
+            db.query(ProfileView.device_type, func.count(ProfileView.id).label("count"))
+            .filter(ProfileView.user_id == user.id, ProfileView.created_at >= since)
+            .group_by(ProfileView.device_type)
+            .all()
         )
-        .filter(ProfileView.user_id == user.id, ProfileView.created_at >= since)
-        .group_by(ProfileView.device_type)
-        .all()
-    )
-    click_device_rows = (
-        db.query(
-            LinkClick.device_type,
-            func.count(LinkClick.id).label("count"),
+        click_device_rows = (
+            db.query(LinkClick.device_type, func.count(LinkClick.id).label("count"))
+            .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, overview_filter)
+            .group_by(LinkClick.device_type)
+            .all()
         )
-        .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since)
-        .group_by(LinkClick.device_type)
-        .all()
-    )
+    else:
+        view_device_rows = []
+        click_device_rows = (
+            db.query(LinkClick.device_type, func.count(LinkClick.id).label("count"))
+            .filter(LinkClick.user_id == user.id, LinkClick.created_at >= since, redirect_filter)
+            .group_by(LinkClick.device_type)
+            .all()
+        )
     device_counts: dict[str, int] = {}
     for device, count in list(view_device_rows) + list(click_device_rows):
         key = (device or "unknown").lower()
         device_counts[key] = device_counts.get(key, 0) + int(count or 0)
     device_split = sorted(device_counts.items(), key=lambda x: x[1], reverse=True)
 
-    view_country_rows = (
-        db.query(ProfileView.country, func.count(ProfileView.id).label("count"))
-        .filter(
-            ProfileView.user_id == user.id,
-            ProfileView.created_at >= since,
-            ProfileView.country.isnot(None),
-            ProfileView.country != "",
+    if tab == "overview":
+        view_country_rows = (
+            db.query(ProfileView.country, func.count(ProfileView.id).label("count"))
+            .filter(
+                ProfileView.user_id == user.id,
+                ProfileView.created_at >= since,
+                ProfileView.country.isnot(None),
+                ProfileView.country != "",
+            )
+            .group_by(ProfileView.country)
+            .all()
         )
-        .group_by(ProfileView.country)
-        .all()
-    )
-    click_country_rows = (
-        db.query(LinkClick.country, func.count(LinkClick.id).label("count"))
-        .filter(
-            LinkClick.user_id == user.id,
-            LinkClick.created_at >= since,
-            LinkClick.country.isnot(None),
-            LinkClick.country != "",
+        click_country_rows = (
+            db.query(LinkClick.country, func.count(LinkClick.id).label("count"))
+            .filter(
+                LinkClick.user_id == user.id,
+                LinkClick.created_at >= since,
+                overview_filter,
+                LinkClick.country.isnot(None),
+                LinkClick.country != "",
+            )
+            .group_by(LinkClick.country)
+            .all()
         )
-        .group_by(LinkClick.country)
-        .all()
-    )
+    else:
+        view_country_rows = []
+        click_country_rows = (
+            db.query(LinkClick.country, func.count(LinkClick.id).label("count"))
+            .filter(
+                LinkClick.user_id == user.id,
+                LinkClick.created_at >= since,
+                redirect_filter,
+                LinkClick.country.isnot(None),
+                LinkClick.country != "",
+            )
+            .group_by(LinkClick.country)
+            .all()
+        )
     country_counts: dict[str, int] = {}
     for country_name, count in list(view_country_rows) + list(click_country_rows):
         if not country_name:
@@ -374,28 +490,44 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
         for name, count in sorted(country_counts.items(), key=lambda x: x[1], reverse=True)[:8]
     ]
 
-    view_city_rows = (
-        db.query(ProfileView.city, func.count(ProfileView.id).label("count"))
-        .filter(
-            ProfileView.user_id == user.id,
-            ProfileView.created_at >= since,
-            ProfileView.city.isnot(None),
-            ProfileView.city != "",
+    if tab == "overview":
+        view_city_rows = (
+            db.query(ProfileView.city, func.count(ProfileView.id).label("count"))
+            .filter(
+                ProfileView.user_id == user.id,
+                ProfileView.created_at >= since,
+                ProfileView.city.isnot(None),
+                ProfileView.city != "",
+            )
+            .group_by(ProfileView.city)
+            .all()
         )
-        .group_by(ProfileView.city)
-        .all()
-    )
-    click_city_rows = (
-        db.query(LinkClick.city, func.count(LinkClick.id).label("count"))
-        .filter(
-            LinkClick.user_id == user.id,
-            LinkClick.created_at >= since,
-            LinkClick.city.isnot(None),
-            LinkClick.city != "",
+        click_city_rows = (
+            db.query(LinkClick.city, func.count(LinkClick.id).label("count"))
+            .filter(
+                LinkClick.user_id == user.id,
+                LinkClick.created_at >= since,
+                overview_filter,
+                LinkClick.city.isnot(None),
+                LinkClick.city != "",
+            )
+            .group_by(LinkClick.city)
+            .all()
         )
-        .group_by(LinkClick.city)
-        .all()
-    )
+    else:
+        view_city_rows = []
+        click_city_rows = (
+            db.query(LinkClick.city, func.count(LinkClick.id).label("count"))
+            .filter(
+                LinkClick.user_id == user.id,
+                LinkClick.created_at >= since,
+                redirect_filter,
+                LinkClick.city.isnot(None),
+                LinkClick.city != "",
+            )
+            .group_by(LinkClick.city)
+            .all()
+        )
     city_counts: dict[str, int] = {}
     for city_name, count in list(view_city_rows) + list(click_city_rows):
         if not city_name:
@@ -406,12 +538,20 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
         for name, count in sorted(city_counts.items(), key=lambda x: x[1], reverse=True)[:8]
     ]
 
-    recent_clicks = (
+    page = max(1, _safe_int(request.query_params.get("page"), 1))
+    per_page = 50
+    recent_query = (
         db.query(LinkClick, Link.title)
         .outerjoin(Link, Link.id == LinkClick.link_id)
-        .filter(LinkClick.user_id == user.id)
-        .order_by(LinkClick.created_at.desc())
-        .limit(20)
+        .filter(LinkClick.user_id == user.id, active_click_filter)
+    )
+    total_recent = recent_query.count()
+    total_pages = max(1, (total_recent + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    recent_clicks = (
+        recent_query.order_by(LinkClick.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
         .all()
     )
 
@@ -421,25 +561,35 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
             "request": request,
             "user": user,
             "active_page": "analytics",
+            "tab": tab,
             "days": days,
             "summary": {
                 "views": int(total_views),
                 "unique_visitors": int(unique_visitors),
-                "clicks": int(total_clicks),
+                "profile_clicks": int(profile_clicks),
+                "redirect_clicks": int(redirect_clicks),
+                "active_clicks": int(active_clicks),
+                "active_unique_clicks": int(active_unique_clicks),
+                "redirect_unique_visitors": int(redirect_unique_visitors),
                 "shares": int(total_shares),
+                "profile_ctr": round((profile_clicks / total_views) * 100, 1) if total_views else 0.0,
+                "redirect_ctr": round((redirect_clicks / total_views) * 100, 1) if total_views else 0.0,
                 "ctr": round((total_clicks / total_views) * 100, 1) if total_views else 0.0,
             },
             "top_links": top_links,
+            "redirect_top_links": redirect_top_links,
             "share_platforms": share_platforms,
             "top_referrers": top_referrers,
             "device_split": device_split,
             "countries": country_rows,
             "cities": city_rows,
-            "trend_days": trend_days,
+            "trend_mode": tab,
             "trend_labels": trend_labels,
             "trend_views": trend_views,
             "trend_clicks": trend_clicks,
             "trend_shares": trend_shares,
             "recent_clicks": recent_clicks,
+            "recent_page": page,
+            "recent_total_pages": total_pages,
         },
     )

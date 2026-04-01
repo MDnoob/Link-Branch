@@ -3,25 +3,30 @@
 {% block title %}Analytics - Link Branch{% endblock %}
 
 {% block extra_styles %}
-.main { padding: 2rem 2.5rem; max-width: 1120px; animation: fadeIn 420ms ease; }
+.main { padding: 2rem 2.5rem; max-width: 1140px; animation: fadeIn 420ms ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .page-title { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
 .page-subtitle { font-size: 0.84rem; color: #888; margin-top: 0.25rem; }
 .range-tabs { display: flex; gap: 0.45rem; flex-wrap: wrap; }
 .range-tab { height: 32px; padding: 0 0.75rem; border-radius: 7px; border: 1px solid #d9d6d0; background: #fff; color: #666; text-decoration: none; font-size: 0.78rem; font-weight: 600; display: inline-flex; align-items: center; }
 .range-tab.active { background: #01696f; border-color: #01696f; color: #fff; }
-.card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
+.analytics-tabs { margin-bottom: 1rem; display: inline-flex; gap: 0.35rem; background: #f1efeb; border: 1px solid #e2dfd8; border-radius: 9px; padding: 0.3rem; }
+.analytics-tab { height: 33px; padding: 0 0.9rem; border-radius: 7px; border: 1px solid transparent; text-decoration: none; color: #666; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; }
+.analytics-tab.active { background: #fff; color: #0f676f; border-color: #d7d3cc; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.card-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.7rem; margin-bottom: 1rem; }
 .kpi-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 0.9rem 1rem; }
 .kpi-label { font-size: 0.74rem; color: #888; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
-.kpi-value { font-size: 1.35rem; font-weight: 700; color: #1a1a18; }
+.kpi-value { font-size: 1.3rem; font-weight: 700; color: #1a1a18; }
 .kpi-hint { font-size: 0.73rem; color: #999; margin-top: 0.1rem; }
 .chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem; }
 .section { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 0.85rem; }
 .section-title { font-size: 0.86rem; font-weight: 600; color: #444; margin-bottom: 0.7rem; }
-.chart-wrap { width: 100%; height: 280px; }
+.chart-wrap { width: 100%; height: 290px; position: relative; }
 .chart-wrap.small { height: 240px; }
 .chart-wrap canvas { width: 100%; height: 100%; display: block; }
+.chart-tooltip { position: absolute; pointer-events: none; background: rgba(16,16,16,0.92); color: #fff; border-radius: 8px; padding: 0.45rem 0.55rem; font-size: 0.72rem; line-height: 1.45; transform: translate(-50%, -120%); opacity: 0; transition: opacity 120ms; white-space: nowrap; z-index: 2; }
+.chart-tooltip.show { opacity: 1; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.85rem; }
 .list { display: flex; flex-direction: column; gap: 0.5rem; }
 .list-item { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem; align-items: center; border-bottom: 1px solid #f1efeb; padding: 0.38rem 0; }
@@ -29,16 +34,15 @@
 .label { font-size: 0.78rem; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .value { font-size: 0.75rem; color: #888; font-weight: 600; }
 .table { width: 100%; border-collapse: collapse; }
-.table th, .table td { font-size: 0.78rem; text-align: left; padding: 0.42rem 0.3rem; border-bottom: 1px solid #f0efec; }
+.table th, .table td { font-size: 0.78rem; text-align: left; padding: 0.46rem 0.3rem; border-bottom: 1px solid #f0efec; }
 .table th { color: #888; font-weight: 600; }
 .empty { font-size: 0.8rem; color: #999; padding: 0.6rem 0; }
-.recent-list { display: flex; flex-direction: column; gap: 0.55rem; }
-.recent-item { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem; align-items: center; padding: 0.52rem 0.62rem; background: #fafaf9; border: 1px solid #efede9; border-radius: 7px; }
-.recent-main { min-width: 0; }
-.recent-title { font-size: 0.78rem; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.recent-url { font-size: 0.72rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.recent-time { font-size: 0.72rem; color: #999; white-space: nowrap; }
-@media (max-width: 1100px) { .card-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .chart-grid, .grid-3 { grid-template-columns: 1fr; } }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.8rem; }
+.pager-btn { height: 30px; padding: 0 0.7rem; border: 1px solid #d9d6d0; background: #fff; border-radius: 7px; color: #666; text-decoration: none; font-size: 0.74rem; font-weight: 600; display: inline-flex; align-items: center; }
+.pager-btn.disabled { opacity: 0.45; pointer-events: none; }
+.pager-meta { font-size: 0.74rem; color: #888; }
+@media (max-width: 1180px) { .card-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } .chart-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } .card-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (max-width: 640px) { .main { padding: 1.2rem 1rem; } .card-grid { grid-template-columns: 1fr; } }
 {% endblock %}
 
@@ -47,16 +51,22 @@
     <div class="page-header">
         <div>
             <h1 class="page-title">Analytics</h1>
-            <p class="page-subtitle">Views, clicks, shares, referrers, devices, and geo trends for your Link Branch page.</p>
+            <p class="page-subtitle">Track views, clicks, redirects, shares, and audience geography for your Link Branch profile.</p>
         </div>
         <div class="range-tabs">
-            <a class="range-tab {% if days == 7 %}active{% endif %}" href="/analytics?days=7">Last 7d</a>
-            <a class="range-tab {% if days == 30 %}active{% endif %}" href="/analytics?days=30">Last 30d</a>
-            <a class="range-tab {% if days == 90 %}active{% endif %}" href="/analytics?days=90">Last 90d</a>
+            <a class="range-tab {% if days == 7 %}active{% endif %}" href="/analytics?tab={{ tab }}&days=7">Last 7d</a>
+            <a class="range-tab {% if days == 30 %}active{% endif %}" href="/analytics?tab={{ tab }}&days=30">Last 30d</a>
+            <a class="range-tab {% if days == 90 %}active{% endif %}" href="/analytics?tab={{ tab }}&days=90">Last 90d</a>
         </div>
     </div>
 
+    <nav class="analytics-tabs" aria-label="Analytics tabs">
+        <a class="analytics-tab {% if tab == 'overview' %}active{% endif %}" href="/analytics?tab=overview&days={{ days }}">Overview</a>
+        <a class="analytics-tab {% if tab == 'redirects' %}active{% endif %}" href="/analytics?tab=redirects&days={{ days }}">Redirect Links</a>
+    </nav>
+
     <section class="card-grid">
+        {% if tab == "overview" %}
         <article class="kpi-card">
             <div class="kpi-label">Profile Views</div>
             <div class="kpi-value">{{ summary.views }}</div>
@@ -65,24 +75,49 @@
         <article class="kpi-card">
             <div class="kpi-label">Unique Visitors</div>
             <div class="kpi-value">{{ summary.unique_visitors }}</div>
-            <div class="kpi-hint">Anonymized count, no IP exposed</div>
+            <div class="kpi-hint">By unique visitor IP</div>
         </article>
         <article class="kpi-card">
-            <div class="kpi-label">Link Clicks</div>
-            <div class="kpi-value">{{ summary.clicks }}</div>
-            <div class="kpi-hint">Tracked button + redirect clicks</div>
+            <div class="kpi-label">Profile Link Clicks</div>
+            <div class="kpi-value">{{ summary.profile_clicks }}</div>
+            <div class="kpi-hint">From public profile buttons only</div>
         </article>
         <article class="kpi-card">
             <div class="kpi-label">Share Events</div>
             <div class="kpi-value">{{ summary.shares }}</div>
-            <div class="kpi-hint">CTR: {{ summary.ctr }}%</div>
+            <div class="kpi-hint">Overall CTR: {{ summary.ctr }}%</div>
         </article>
+        <article class="kpi-card">
+            <div class="kpi-label">Profile CTR</div>
+            <div class="kpi-value">{{ summary.profile_ctr }}%</div>
+            <div class="kpi-hint">Profile clicks / views</div>
+        </article>
+        {% else %}
+        <article class="kpi-card">
+            <div class="kpi-label">Redirect Clicks</div>
+            <div class="kpi-value">{{ summary.redirect_clicks }}</div>
+            <div class="kpi-hint">From /l and hidden /r links</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-label">Unique Redirect Visitors</div>
+            <div class="kpi-value">{{ summary.redirect_unique_visitors }}</div>
+            <div class="kpi-hint">Distinct IP addresses</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-label">Redirect CTR</div>
+            <div class="kpi-value">{{ summary.redirect_ctr }}%</div>
+            <div class="kpi-hint">Redirect clicks / profile views</div>
+        </article>
+        {% endif %}
     </section>
 
     <section class="chart-grid">
         <div class="section">
-            <h2 class="section-title">Traffic Trend</h2>
-            <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+            <h2 class="section-title">{% if tab == "redirects" %}Redirect Trend{% else %}Traffic Trend{% endif %}</h2>
+            <div class="chart-wrap">
+                <canvas id="trendChart"></canvas>
+                <div class="chart-tooltip" id="trendTooltip"></div>
+            </div>
         </div>
         <div class="section">
             <h2 class="section-title">Device Split</h2>
@@ -92,7 +127,7 @@
 
     <section class="grid-3">
         <div class="section">
-            <h2 class="section-title">Top Referrers</h2>
+            <h2 class="section-title">{% if tab == "redirects" %}Redirect Referrers{% else %}Top Referrers{% endif %}</h2>
             {% if top_referrers %}
             <div class="list">
                 {% for ref, count in top_referrers %}
@@ -104,7 +139,7 @@
             {% endif %}
         </div>
         <div class="section">
-            <h2 class="section-title">Top Countries</h2>
+            <h2 class="section-title">{% if tab == "redirects" %}Redirect Countries{% else %}Top Countries{% endif %}</h2>
             {% if countries %}
             <div class="list">
                 {% for item in countries %}
@@ -116,7 +151,7 @@
             {% endif %}
         </div>
         <div class="section">
-            <h2 class="section-title">Top Cities</h2>
+            <h2 class="section-title">{% if tab == "redirects" %}Redirect Cities{% else %}Top Cities{% endif %}</h2>
             {% if cities %}
             <div class="list">
                 {% for item in cities %}
@@ -128,14 +163,12 @@
             {% endif %}
         </div>
     </section>
-
+    {% if tab == "overview" %}
     <section class="section">
-        <h2 class="section-title">Top Links</h2>
+        <h2 class="section-title">Top Profile Links</h2>
         {% if top_links %}
         <table class="table">
-            <thead>
-                <tr><th>Link</th><th>Clicks</th></tr>
-            </thead>
+            <thead><tr><th>Link</th><th>Clicks</th></tr></thead>
             <tbody>
                 {% for item in top_links %}
                 <tr><td>{{ item.title or ('Link #' ~ item.link_id) }}</td><td>{{ item.clicks }}</td></tr>
@@ -143,7 +176,7 @@
             </tbody>
         </table>
         {% else %}
-        <div class="empty">No click data yet.</div>
+        <div class="empty">No profile-click data yet.</div>
         {% endif %}
     </section>
 
@@ -151,9 +184,7 @@
         <h2 class="section-title">Share Platforms</h2>
         {% if share_platforms %}
         <table class="table">
-            <thead>
-                <tr><th>Platform</th><th>Events</th></tr>
-            </thead>
+            <thead><tr><th>Platform</th><th>Events</th></tr></thead>
             <tbody>
                 {% for item in share_platforms %}
                 <tr><td>{{ item.platform or 'unknown' }}</td><td>{{ item.count }}</td></tr>
@@ -161,23 +192,62 @@
             </tbody>
         </table>
         {% else %}
-        <div class="empty">No share data yet.</div>
+            <div class="empty">No share data yet.</div>
         {% endif %}
     </section>
+    {% else %}
+    <section class="section">
+        <h2 class="section-title">Top Redirect Links</h2>
+        {% if redirect_top_links %}
+        <table class="table">
+            <thead><tr><th>Redirect Link</th><th>Destination</th><th>Clicks</th></tr></thead>
+            <tbody>
+                {% for item in redirect_top_links %}
+                <tr>
+                    <td>{{ item.title or ('Redirect #' ~ (item.link_id or '?')) }}</td>
+                    <td>{{ item.destination_url or '-' }}</td>
+                    <td>{{ item.clicks }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No redirect-click data yet.</div>
+        {% endif %}
+    </section>
+    {% endif %}
 
     <section class="section">
-        <h2 class="section-title">Recent Clicks</h2>
+        <h2 class="section-title">{% if tab == "redirects" %}Recent Redirect Clicks{% else %}Recent Profile Clicks{% endif %}</h2>
         {% if recent_clicks %}
-        <div class="recent-list">
-            {% for click, title in recent_clicks %}
-            <div class="recent-item">
-                <div class="recent-main">
-                    <div class="recent-title">{{ title or ('Link #' ~ (click.link_id or '?')) }}</div>
-                    <div class="recent-url">{{ click.destination_url or '-' }}</div>
-                </div>
-                <div class="recent-time">{{ click.created_at.strftime('%Y-%m-%d %H:%M') if click.created_at else '' }}</div>
-            </div>
-            {% endfor %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Link</th>
+                    <th>Date & Time</th>
+                    <th>IP Address</th>
+                    <th>Country</th>
+                    <th>City</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for click, title in recent_clicks %}
+                <tr>
+                    <td>{{ title or click.destination_url or ('Link #' ~ (click.link_id or '?')) }}</td>
+                    <td>{{ click.created_at.strftime('%Y-%m-%d %H:%M') if click.created_at else '-' }}</td>
+                    <td>{{ click.viewer_ip or '-' }}</td>
+                    <td>{{ click.country or '-' }}</td>
+                    <td>{{ click.city or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="pager">
+            {% set prev_page = recent_page - 1 %}
+            {% set next_page = recent_page + 1 %}
+            <a href="/analytics?tab={{ tab }}&days={{ days }}&page={{ prev_page }}" class="pager-btn {% if recent_page <= 1 %}disabled{% endif %}">Previous</a>
+            <div class="pager-meta">Page {{ recent_page }} of {{ recent_total_pages }} (50 rows per page)</div>
+            <a href="/analytics?tab={{ tab }}&days={{ days }}&page={{ next_page }}" class="pager-btn {% if recent_page >= recent_total_pages %}disabled{% endif %}">Next</a>
         </div>
         {% else %}
         <div class="empty">No click activity yet.</div>
@@ -194,7 +264,9 @@ const trendData = {
     clicks: {{ trend_clicks | tojson }},
     shares: {{ trend_shares | tojson }}
 };
+const trendMode = {{ trend_mode | tojson }};
 const deviceData = {{ device_split | tojson }};
+let trendState = null;
 
 function drawTrendChart(canvas, data) {
     if (!canvas) return;
@@ -204,13 +276,15 @@ function drawTrendChart(canvas, data) {
     const h = canvas.clientHeight;
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    const pad = { t: 16, r: 8, b: 24, l: 34 };
+    const pad = { t: 18, r: 10, b: 24, l: 34 };
     const plotW = w - pad.l - pad.r;
     const plotH = h - pad.t - pad.b;
-    const all = [...data.views, ...data.clicks, ...data.shares];
+    const all = trendMode === 'redirects'
+        ? [...data.clicks]
+        : [...data.views, ...data.clicks, ...data.shares];
     const maxY = Math.max(5, ...all);
 
     const x = i => pad.l + (i * plotW / Math.max(1, data.labels.length - 1));
@@ -220,7 +294,10 @@ function drawTrendChart(canvas, data) {
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
         const yy = pad.t + (plotH / 4) * i;
-        ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(pad.l, yy);
+        ctx.lineTo(w - pad.r, yy);
+        ctx.stroke();
     }
 
     function line(values, color) {
@@ -234,25 +311,35 @@ function drawTrendChart(canvas, data) {
         ctx.stroke();
     }
 
-    line(data.views, '#01696f');
-    line(data.clicks, '#3b82f6');
-    line(data.shares, '#f59e0b');
-
-    ctx.fillStyle = '#888';
-    ctx.font = '11px Inter, sans-serif';
-    ctx.fillText('Views', 8, 16);
-    ctx.fillStyle = '#01696f'; ctx.fillRect(6, 9, 2, 8);
-    ctx.fillStyle = '#888'; ctx.fillText('Clicks', 56, 16);
-    ctx.fillStyle = '#3b82f6'; ctx.fillRect(52, 9, 2, 8);
-    ctx.fillStyle = '#888'; ctx.fillText('Shares', 108, 16);
-    ctx.fillStyle = '#f59e0b'; ctx.fillRect(102, 9, 2, 8);
-
-    ctx.fillStyle = '#999';
-    ctx.font = '10px Inter, sans-serif';
-    if (data.labels.length > 0) {
-        ctx.fillText(data.labels[0], pad.l, h - 8);
-        ctx.fillText(data.labels[data.labels.length - 1], w - pad.r - 58, h - 8);
+    if (trendMode === 'redirects') {
+        line(data.clicks, '#7c3aed');
+        ctx.fillStyle = '#888';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText('Redirect Clicks', 8, 16);
+        ctx.fillStyle = '#7c3aed'; ctx.fillRect(6, 9, 2, 8);
+    } else {
+        line(data.views, '#01696f');
+        line(data.clicks, '#3b82f6');
+        line(data.shares, '#f59e0b');
+        ctx.fillStyle = '#888';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText('Views', 8, 16);
+        ctx.fillStyle = '#01696f'; ctx.fillRect(6, 9, 2, 8);
+        ctx.fillStyle = '#888'; ctx.fillText('Clicks', 56, 16);
+        ctx.fillStyle = '#3b82f6'; ctx.fillRect(52, 9, 2, 8);
+        ctx.fillStyle = '#888'; ctx.fillText('Shares', 108, 16);
+        ctx.fillStyle = '#f59e0b'; ctx.fillRect(102, 9, 2, 8);
     }
+
+    const points = data.labels.map((label, i) => ({
+        x: x(i),
+        y: y(trendMode === 'redirects' ? data.clicks[i] : data.views[i]),
+        label,
+        views: data.views[i],
+        clicks: data.clicks[i],
+        shares: data.shares[i]
+    }));
+    trendState = { canvas, pad, plotW, points };
 }
 
 function drawDeviceDonut(canvas, rows) {
@@ -263,7 +350,7 @@ function drawDeviceDonut(canvas, rows) {
     const h = canvas.clientHeight;
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
     const items = rows.length ? rows : [['unknown', 1]];
@@ -299,9 +386,41 @@ function drawDeviceDonut(canvas, rows) {
     });
 }
 
+function bindTrendHover() {
+    const tooltip = document.getElementById('trendTooltip');
+    if (!trendState || !trendState.canvas || !tooltip) return;
+    const canvas = trendState.canvas;
+
+    function hideTooltip() {
+        tooltip.classList.remove('show');
+    }
+
+    canvas.onmousemove = function (event) {
+        if (!trendState || !trendState.points.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        let nearest = trendState.points[0];
+        for (const p of trendState.points) {
+            if (Math.abs(p.x - x) < Math.abs(nearest.x - x)) nearest = p;
+        }
+        if (trendMode === 'redirects') {
+            tooltip.innerHTML = `${nearest.label}<br>Redirect Clicks: ${nearest.clicks}`;
+        } else {
+            tooltip.innerHTML = `${nearest.label}<br>Views: ${nearest.views} | Clicks: ${nearest.clicks} | Shares: ${nearest.shares}`;
+        }
+        const left = Math.max(20, Math.min(canvas.clientWidth - 20, nearest.x));
+        const top = Math.max(20, nearest.y);
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.classList.add('show');
+    };
+    canvas.onmouseleave = hideTooltip;
+}
+
 function renderCharts() {
     drawTrendChart(document.getElementById('trendChart'), trendData);
     drawDeviceDonut(document.getElementById('deviceChart'), deviceData);
+    bindTrendHover();
 }
 
 window.addEventListener('resize', renderCharts);

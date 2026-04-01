@@ -56,6 +56,7 @@ class User(Base):
 
     links          = relationship("Link",        back_populates="owner", cascade="all, delete-orphan")
     assets         = relationship("Asset",       back_populates="owner", cascade="all, delete-orphan")
+    redirect_links = relationship("RedirectLink", back_populates="owner", cascade="all, delete-orphan")
     profile_views  = relationship("ProfileView", back_populates="owner", cascade="all, delete-orphan")
     link_clicks    = relationship("LinkClick",   back_populates="owner", cascade="all, delete-orphan")
     share_events   = relationship("ShareEvent",  back_populates="owner", cascade="all, delete-orphan")
@@ -88,6 +89,19 @@ class Asset(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="assets")
+
+
+class RedirectLink(Base):
+    __tablename__ = "redirect_links"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title      = Column(String(200), nullable=False)
+    url        = Column(String(500), nullable=False)
+    is_active  = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    owner = relationship("User", back_populates="redirect_links")
 
 
 class ProfileView(Base):
@@ -123,6 +137,7 @@ class LinkClick(Base):
     device_type     = Column(String(20), nullable=True, index=True)
     country         = Column(String(100), nullable=True, index=True)
     city            = Column(String(100), nullable=True, index=True)
+    click_source    = Column(String(40), nullable=True, index=True)
     created_at      = Column(DateTime, default=datetime.utcnow, index=True)
 
     owner = relationship("User", back_populates="link_clicks")

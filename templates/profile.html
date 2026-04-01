@@ -701,6 +701,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    const PUBLIC_BASE_URL = {{ public_base_url | tojson }};
     const profileTitle = {{ (user.display_name or user.username) | tojson }};
     const profileBio = {{ (user.bio or '') | tojson }};
     const profileUsername = {{ user.username | tojson }};
@@ -718,11 +719,11 @@
 
     function absoluteUrl(path) {
       if (/^https?:\/\//i.test(path)) return path;
-      return new URL(path, window.location.origin).toString();
+      return new URL(path, PUBLIC_BASE_URL).toString();
     }
 
     function withRef(path, ref) {
-      const u = new URL(path, window.location.origin);
+      const u = new URL(path, PUBLIC_BASE_URL);
       u.searchParams.set('ref', ref);
       return `${u.pathname}${u.search}${u.hash}`;
     }
@@ -866,7 +867,7 @@
         if (platform === 'instagram') {
           await copyText(url);
           await logShare('instagram', activeShare.linkId);
-          window.open('https://www.instagram.com/', '_blank');
+          window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
           showToast('Instagram opened in new tab. Link copied.');
           closeShareModal();
           return;
@@ -881,7 +882,7 @@
 
         if (targets[platform]) {
           await logShare(platform, activeShare.linkId);
-          window.open(targets[platform], '_blank');
+          window.open(targets[platform], '_blank', 'noopener,noreferrer');
           closeShareModal();
         }
       });

@@ -19,6 +19,10 @@
 .page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
 .page-subtitle { font-size: 0.825rem; color: #888; margin-top: 0.2rem; }
 .section-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 0.6rem; }
+.dashboard-tabs { display: inline-flex; gap: 0.35rem; margin-bottom: 1.1rem; background: #f1efeb; border: 1px solid #e3e0da; border-radius: 9px; padding: 0.3rem; }
+.dashboard-tab { height: 33px; padding: 0 0.9rem; border-radius: 7px; border: 1px solid transparent; text-decoration: none; color: #666; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; }
+.dashboard-tab.active { background: #fff; color: #0f676f; border-color: #d8d5cf; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.tab-pill { font-size: 0.68rem; background: #ebe9e5; color: #8a867f; border-radius: 99px; padding: 2px 6px; }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Action bar above add form Ã¢â€â‚¬Ã¢â€â‚¬ */
 .top-actions { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
@@ -110,11 +114,31 @@ input[name="icon"] { display: none; }
 .icon-btn:hover { color: #888; background: #f4f2ef; }
 .icon-btn.danger:hover { color: #b91c1c; background: #fef2f2; }
 
+.extra-grid { display: grid; gap: 0.8rem; }
+.info-card, .extra-card { background: #fff; border: 1px solid #e4e2de; border-radius: 11px; padding: 1rem 1.1rem; }
+.info-card p { font-size: 0.82rem; color: #666; line-height: 1.5; margin-top: 0.3rem; }
+.how-list { margin-top: 0.55rem; display: grid; gap: 0.35rem; font-size: 0.79rem; color: #666; }
+.extra-form { display: grid; grid-template-columns: 1fr 1.3fr auto; gap: 0.55rem; align-items: end; }
+.mini-label { font-size: 0.73rem; color: #888; margin-bottom: 0.25rem; display: block; }
+.mini-input { height: 36px; border: 1px solid #dfdcd6; background: #fafaf9; border-radius: 8px; padding: 0 0.7rem; font-size: 0.86rem; width: 100%; }
+.mini-input:focus { outline: none; border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; }
+.row-list { display: grid; gap: 0.45rem; margin-top: 0.7rem; }
+.row-item { border: 1px solid #ece9e2; background: #fbfbfa; border-radius: 9px; padding: 0.65rem 0.75rem; display: grid; grid-template-columns: 1fr auto; gap: 0.55rem; align-items: center; }
+.row-title { font-size: 0.83rem; font-weight: 600; color: #333; }
+.row-url { font-size: 0.73rem; color: #8d8880; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.row-actions { display: flex; gap: 0.35rem; align-items: center; }
+.btn-mini { height: 31px; padding: 0 0.68rem; border-radius: 7px; border: 1px solid #ddd9d2; background: #fff; color: #555; font-size: 0.75rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+.btn-mini:hover { background: #f4f2ef; }
+.btn-mini.primary { border-color: #01696f; background: #01696f; color: #fff; }
+.btn-mini.primary:hover { background: #0c4e54; border-color: #0c4e54; }
+.row-badge { font-size: 0.68rem; color: #999; background: #eeece7; border-radius: 99px; padding: 2px 6px; margin-left: 0.35rem; }
+
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Empty state Ã¢â€â‚¬Ã¢â€â‚¬ */
 .empty-state { text-align: center; padding: 3.5rem 2rem; color: #aaa; }
 .empty-state svg { margin: 0 auto 1rem; opacity: 0.25; }
 .empty-state h3 { font-size: 0.95rem; font-weight: 600; color: #555; margin-bottom: 0.35rem; }
 .empty-state p { font-size: 0.825rem; }
+.empty { font-size: 0.82rem; color: #999; padding: 0.45rem 0; }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Edit Modal Ã¢â€â‚¬Ã¢â€â‚¬ */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
@@ -163,13 +187,15 @@ input[name="icon"] { display: none; }
 }
 
 @media (max-width: 860px) { .form-row { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 640px) { .main { padding: 1.25rem 1rem; max-width: 100%; } .form-row { grid-template-columns: 1fr; } .form-row .btn-primary { width: 100%; justify-content: center; } }
+@media (max-width: 860px) { .extra-form { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .main { padding: 1.25rem 1rem; max-width: 100%; } .form-row, .extra-form { grid-template-columns: 1fr; } .form-row .btn-primary, .extra-form .btn-primary { width: 100%; justify-content: center; } .row-item { grid-template-columns: 1fr; } }
 {% endblock %}
 
 {% block content %}
 <script>
 const USER_ASSETS = [{% for asset in assets %}{"id":{{ asset.id }},"url":"{{ asset.url }}","label":"{{ asset.label|e }}"}{% if not loop.last %},{% endif %}{% endfor %}];
-const MY_PAGE_URL = window.location.origin + '/profile/{{ user.username }}';
+const PUBLIC_BASE_URL = {{ public_base_url | tojson }};
+const MY_PAGE_URL = PUBLIC_BASE_URL + '/profile/{{ user.username }}';
 </script>
 
 <main class="main">
@@ -177,7 +203,12 @@ const MY_PAGE_URL = window.location.origin + '/profile/{{ user.username }}';
         <h1 class="page-title">My Links</h1>
         <p class="page-subtitle">Manage what shows on your public page</p>
     </div>
+    <nav class="dashboard-tabs" aria-label="Dashboard sections">
+        <a href="/dashboard?tab=links" class="dashboard-tab {% if active_tab != 'extra' %}active{% endif %}">Links</a>
+        <a href="/dashboard?tab=extra" class="dashboard-tab {% if active_tab == 'extra' %}active{% endif %}">Extra <span aria-hidden="true">✨</span></a>
+    </nav>
 
+    {% if active_tab != 'extra' %}
     <!-- Top actions -->
     <div class="top-actions">
         <p class="section-label" style="margin-bottom:0">Add New Link</p>
@@ -299,9 +330,6 @@ const MY_PAGE_URL = window.location.origin + '/profile/{{ user.username }}';
                 <button type="button" class="icon-btn" title="Edit" onclick="openEdit({{ link.id }}, '{{ link.title|e }}', '{{ link.url|e }}', '{{ link.icon or '' }}', false)">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button type="button" class="icon-btn" title="Copy trackable redirect link" onclick="copyRedirectLink({{ link.id }}, '{{ link.title|e }}')">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                </button>
                 <form action="/dashboard/links/{{ link.id }}/delete" method="post" onsubmit="return confirm('Delete \'{{ link.title|e }}\'?')">
                     <button type="submit" class="icon-btn danger" title="Delete">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -320,6 +348,79 @@ const MY_PAGE_URL = window.location.origin + '/profile/{{ user.username }}';
         <p>Add your first link above to get started.</p>
     </div>
     {% endif %}
+    {% else %}
+    <section class="extra-grid">
+        <article class="info-card">
+            <p class="section-label" style="margin-bottom:0">Advanced Tracking</p>
+            <h2 class="page-title" style="font-size:1rem;margin-top:0.3rem;">Create share-ready redirect links</h2>
+            <p>This section gives you trackable links you can paste anywhere. They open your destination normally, but Link Branch logs clicks for analytics.</p>
+            <div class="how-list">
+                <div>1. Add a destination URL below.</div>
+                <div>2. Copy the generated redirect link.</div>
+                <div>3. Share it in WhatsApp, stories, bios, emails, or campaigns.</div>
+            </div>
+        </article>
+
+        <article class="extra-card">
+            <p class="section-label" style="margin-bottom:0.55rem;">New Hidden Redirect Link</p>
+            <form action="/dashboard/redirect-links/add" method="post" class="extra-form">
+                <div>
+                    <label class="mini-label" for="extra_title">Name</label>
+                    <input class="mini-input" id="extra_title" name="title" placeholder="Campaign 2026" required autocomplete="off">
+                </div>
+                <div>
+                    <label class="mini-label" for="extra_url">Destination URL</label>
+                    <input class="mini-input" id="extra_url" name="url" placeholder="https://example.com/landing" required autocomplete="off">
+                </div>
+                <button type="submit" class="btn-primary">Create</button>
+            </form>
+        </article>
+
+        <article class="extra-card">
+            <p class="section-label" style="margin-bottom:0">Trackable Links From Public Page</p>
+            <div class="row-list">
+                {% for link in links if not link.is_section and link.url %}
+                <div class="row-item">
+                    <div>
+                        <div class="row-title">{{ link.title }}{% if not link.is_active %}<span class="row-badge">Inactive on public page</span>{% endif %}</div>
+                        <div class="row-url">{{ public_base_url }}/l/{{ link.id }}?ref=dashboard_share</div>
+                    </div>
+                    <div class="row-actions">
+                        <button type="button" class="btn-mini primary" onclick="copyTrackedLink('/l/{{ link.id }}?ref=dashboard_share','{{ link.title|e }}',{{ link.id }})">Copy</button>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty">No public links yet.</div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="extra-card">
+            <p class="section-label" style="margin-bottom:0">Hidden Redirect Links (Not Public)</p>
+            <div class="row-list">
+                {% for row in redirect_links %}
+                <div class="row-item">
+                    <div>
+                        <div class="row-title">{{ row.title }}{% if not row.is_active %}<span class="row-badge">Disabled</span>{% endif %}</div>
+                        <div class="row-url">{{ public_base_url }}/r/{{ row.id }}?ref=dashboard_share</div>
+                    </div>
+                    <div class="row-actions">
+                        <button type="button" class="btn-mini primary" onclick="copyPrivateTrackedLink('/r/{{ row.id }}?ref=dashboard_share','{{ row.title|e }}')">Copy</button>
+                        <form action="/dashboard/redirect-links/{{ row.id }}/toggle" method="post">
+                            <button type="submit" class="btn-mini">{% if row.is_active %}Disable{% else %}Enable{% endif %}</button>
+                        </form>
+                        <form action="/dashboard/redirect-links/{{ row.id }}/delete" method="post" onsubmit="return confirm('Delete this hidden redirect link?')">
+                            <button type="submit" class="btn-mini">Delete</button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty">No hidden redirect links yet.</div>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+    {% endif %}
 </main>
 
 <!-- Edit Modal -->
@@ -327,7 +428,7 @@ const MY_PAGE_URL = window.location.origin + '/profile/{{ user.username }}';
     <div class="modal">
         <div class="modal-header">
             <h2 class="modal-title" id="modalTitle">Edit</h2>
-            <button class="modal-close" onclick="closeEdit()" aria-label="Close">Ã¢Å“â€¢</button>
+            <button class="modal-close" onclick="closeEdit()" aria-label="Close">&times;</button>
         </div>
         <form id="editForm" method="post">
             <div class="modal-fields">
@@ -496,11 +597,14 @@ async function logDashboardShare(platform, linkId=null, path=null){
         });
     }catch(_){ }
 }
-async function copyRedirectLink(linkId, linkTitle){
-    const redirectUrl = `${window.location.origin}/l/${linkId}?ref=dashboard_share`;
+async function copyTrackedLink(path, linkTitle, linkId=null){
+    const redirectUrl = `${PUBLIC_BASE_URL}${path}`;
     await navigator.clipboard.writeText(redirectUrl);
-    await logDashboardShare('link_copy', linkId, redirectUrl);
+    await logDashboardShare('copy', linkId, redirectUrl);
     showToast(`Trackable link copied for ${linkTitle}`);
+}
+async function copyPrivateTrackedLink(path, linkTitle){
+    await copyTrackedLink(path, linkTitle, null);
 }
 async function copyPageUrl(){
     await navigator.clipboard.writeText(MY_PAGE_URL);
@@ -514,11 +618,11 @@ function sharePageTo(platform){
     if(platform==='instagram'){
         navigator.clipboard.writeText(MY_PAGE_URL).then(()=>showToast('Instagram opened in new tab. Link copied.'));
         logDashboardShare('instagram');
-        window.open('https://www.instagram.com/','_blank');
+        window.open('https://www.instagram.com/','_blank','noopener,noreferrer');
         closeShareModal();
         return;
     }
-    if(urls[platform])window.open(urls[platform],'_blank');
+    if(urls[platform])window.open(urls[platform],'_blank','noopener,noreferrer');
     logDashboardShare(platform);
     closeShareModal();
 }

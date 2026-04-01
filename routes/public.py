@@ -1,11 +1,13 @@
+import os
+from urllib.parse import quote_plus, urlparse
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from urllib.parse import quote_plus, urlparse
 
 from database import get_db
-from models import Link, LinkClick, ProfileView, User
+from models import Link, LinkClick, ProfileView, RedirectLink, User
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -60,6 +62,91 @@ def _geo_context(request: Request) -> tuple[str | None, str | None]:
     return (country or None, city or None)
 
 
+def _normalize_destination(url: str | None) -> str:
+    destination = (url or "").strip()
+    if destination and not destination.startswith(("http://", "https://")):
+        destination = "https://" + destination
+    return destination
+
+
+def _public_base_url(request: Request) -> str:
+    configured = (os.getenv("PUBLIC_BASE_URL") or "").strip()
+    if configured:
+        return configured.rstrip("/")
+
+    host_header = (request.headers.get("host") or request.url.netloc or "").strip()
+    if host_header:
+        return f"{request.url.scheme}://{host_header}"
+    return str(request.base_url).rstrip("/")
+
+
+def _redirect_bridge_html(next_url: str) -> HTMLResponse:
+    html = f"""<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Opening link...</title>
+  <noscript><meta http-equiv="refresh" content="0;url={next_url}" /></noscript>
+</head>
+<body style="font-family:system-ui,sans-serif;background:#f7f6f2;color:#444;display:grid;place-items:center;min-height:100vh">
+  <p>Opening link...</p>
+  <script>
+    (async function () {{
+      const target = new URL({next_url!r}, window.location.origin);
+      try {{
+        const geoRes = await fetch('https://ipapi.co/json/', {{ cache: 'no-store' }});
+        if (geoRes.ok) {{
+          const geo = await geoRes.json();
+          if (geo.country_name || geo.country) target.searchParams.set('country', geo.country_name || geo.country);
+          if (geo.city) target.searchParams.set('city', geo.city);
+          if (geo.ip) target.searchParams.set('ip', geo.ip);
+        }}
+      }} catch (_) {{}}
+      window.location.replace(target.toString());
+    }})();
+    setTimeout(function() {{
+      window.location.replace(new URL({next_url!r}, window.location.origin).toString());
+    }}, 1400);
+  </script>
+</body></html>"""
+    return HTMLResponse(content=html)
+
+
+def _log_link_click(
+    db: Session,
+    request: Request,
+    *,
+    owner_id: int,
+    link_id: int | None,
+    destination: str,
+    ref: str | None,
+    click_source: str,
+) -> None:
+    country, city = _geo_context(request)
+    country_hint = (request.query_params.get("country") or "")[:100] or None
+    city_hint = (request.query_params.get("city") or "")[:100] or None
+    ip_hint = (request.query_params.get("ip") or "")[:64] or None
+    click = LinkClick(
+        user_id=owner_id,
+        link_id=link_id,
+        destination_url=destination,
+        ref=ref,
+        viewer_ip=ip_hint or _client_ip(request),
+        user_agent=(request.headers.get("user-agent") or "")[:255] or None,
+        referer=(request.headers.get("referer") or "")[:500] or None,
+        referrer_domain=_referrer_domain(request.headers.get("referer")),
+        device_type=_device_type(request.headers.get("user-agent")),
+        country=country_hint or country,
+        city=city_hint or city,
+        click_source=click_source,
+    )
+    db.add(click)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 @router.get("/profile/{username}", response_class=HTMLResponse)
 def public_profile(username: str, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
@@ -73,7 +160,6 @@ def public_profile(username: str, request: Request, db: Session = Depends(get_db
     links = db.query(Link).filter(Link.user_id == user.id).order_by(Link.sort_order).all()
     visible = [l for l in links if l.is_section or l.is_active]
 
-    # Preview mode: override user fields with query params
     params = dict(request.query_params)
     in_preview = bool(params.get("preview"))
     if in_preview:
@@ -123,7 +209,6 @@ def public_profile(username: str, request: Request, db: Session = Depends(get_db
         if "show_branding" in params:
             user.show_branding = str(params["show_branding"]).strip().lower() in TRUE_VALUES
     else:
-        # Log actual profile views only (not live-preview iframe refreshes)
         country, city = _geo_context(request)
         view = ProfileView(
             user_id=user.id,
@@ -148,6 +233,7 @@ def public_profile(username: str, request: Request, db: Session = Depends(get_db
             "request": request,
             "user": user,
             "links": visible,
+            "public_base_url": _public_base_url(request),
         },
     )
 
@@ -158,67 +244,53 @@ def open_link(link_id: int, request: Request, db: Session = Depends(get_db)):
     if not link or link.is_section:
         return RedirectResponse(url="/", status_code=302)
 
-    destination = (link.url or "").strip()
+    destination = _normalize_destination(link.url)
     if not destination:
         return RedirectResponse(url="/", status_code=302)
-    if not destination.startswith(("http://", "https://")):
-        destination = "https://" + destination
 
-    country, city = _geo_context(request)
     ref = (request.query_params.get("ref") or "")[:100] or None
     already_logged = str(request.query_params.get("_logged") or "").strip() == "1"
     if already_logged:
-        country_hint = (request.query_params.get("country") or "")[:100] or None
-        city_hint = (request.query_params.get("city") or "")[:100] or None
-        ip_hint = (request.query_params.get("ip") or "")[:64] or None
-        click = LinkClick(
-            user_id=link.user_id,
+        _log_link_click(
+            db,
+            request,
+            owner_id=link.user_id,
             link_id=link.id,
-            destination_url=destination,
+            destination=destination,
             ref=ref,
-            viewer_ip=ip_hint or _client_ip(request),
-            user_agent=(request.headers.get("user-agent") or "")[:255] or None,
-            referer=(request.headers.get("referer") or "")[:500] or None,
-            referrer_domain=_referrer_domain(request.headers.get("referer")),
-            device_type=_device_type(request.headers.get("user-agent")),
-            country=country_hint or country,
-            city=city_hint or city,
+            click_source="public_redirect",
         )
-        db.add(click)
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
         return RedirectResponse(url=destination, status_code=302)
 
     safe_ref = quote_plus(ref or "")
     next_url = f"/l/{link.id}?_logged=1&ref={safe_ref}"
-    html = f"""<!DOCTYPE html>
-<html><head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Opening link...</title>
-  <noscript><meta http-equiv="refresh" content="0;url={next_url}" /></noscript>
-</head>
-<body style="font-family:system-ui,sans-serif;background:#f7f6f2;color:#444;display:grid;place-items:center;min-height:100vh">
-  <p>Opening link...</p>
-  <script>
-    (async function () {{
-      const target = new URL({next_url!r}, window.location.origin);
-      try {{
-        const geoRes = await fetch('https://ipapi.co/json/', {{ cache: 'no-store' }});
-        if (geoRes.ok) {{
-          const geo = await geoRes.json();
-          if (geo.country_name || geo.country) target.searchParams.set('country', geo.country_name || geo.country);
-          if (geo.city) target.searchParams.set('city', geo.city);
-          if (geo.ip) target.searchParams.set('ip', geo.ip);
-        }}
-      }} catch (_) {{}}
-      window.location.replace(target.toString());
-    }})();
-    setTimeout(function() {{
-      window.location.replace(new URL({next_url!r}, window.location.origin).toString());
-    }}, 1400);
-  </script>
-</body></html>"""
-    return HTMLResponse(content=html)
+    return _redirect_bridge_html(next_url)
+
+
+@router.get("/r/{redirect_id}")
+def open_redirect_link(redirect_id: int, request: Request, db: Session = Depends(get_db)):
+    row = db.query(RedirectLink).filter(RedirectLink.id == redirect_id).first()
+    if not row or not row.is_active:
+        return RedirectResponse(url="/", status_code=302)
+
+    destination = _normalize_destination(row.url)
+    if not destination:
+        return RedirectResponse(url="/", status_code=302)
+
+    ref = (request.query_params.get("ref") or "")[:100] or None
+    already_logged = str(request.query_params.get("_logged") or "").strip() == "1"
+    if already_logged:
+        _log_link_click(
+            db,
+            request,
+            owner_id=row.user_id,
+            link_id=None,
+            destination=destination,
+            ref=ref,
+            click_source="extra_redirect",
+        )
+        return RedirectResponse(url=destination, status_code=302)
+
+    safe_ref = quote_plus(ref or "")
+    next_url = f"/r/{row.id}?_logged=1&ref={safe_ref}"
+    return _redirect_bridge_html(next_url)
