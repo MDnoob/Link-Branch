@@ -30,8 +30,8 @@
 .btn-share-page:hover { background: #ebe9e5; }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Add cards Ã¢â€â‚¬Ã¢â€â‚¬ */
-.add-link-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.1rem 1.25rem 1.25rem; margin-bottom: 0.75rem; overflow: visible; }
-.add-section-card { background: #fafaf9; border: 1px dashed #d4d1cc; border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1.75rem; display: flex; align-items: center; gap: 0.75rem; overflow: visible; }
+.add-link-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.1rem 1.25rem 1.25rem; margin-bottom: 0.75rem; overflow: visible; position: relative; z-index: 1; }
+.add-section-card { background: #fafaf9; border: 1px dashed #d4d1cc; border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1.75rem; display: flex; align-items: center; gap: 0.75rem; overflow: visible; position: relative; z-index: 1; }
 .add-section-input { flex: 1; height: 34px; padding: 0 0.75rem; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.875rem; font-family: inherit; color: #1a1a18; background: #fff; outline: none; transition: border-color 150ms; }
 .add-section-input:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); }
 .btn-add-section { height: 34px; padding: 0 0.85rem; background: none; color: #888; border: 1px solid #e0ddd8; border-radius: 7px; font-size: 0.8rem; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 120ms, color 120ms; }
@@ -47,8 +47,8 @@
 .field input:focus { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Icon picker Ã¢â€â‚¬Ã¢â€â‚¬ */
-.icon-picker-wrap { display: flex; flex-direction: column; gap: 0.3rem; position: relative; z-index: 2; }
-.icon-picker-wrap.picker-active { z-index: 1800; }
+.icon-picker-wrap { display: flex; flex-direction: column; gap: 0.3rem; position: relative; z-index: 2; isolation: isolate; }
+.icon-picker-wrap.picker-active { z-index: 6000; }
 .icon-picker-wrap label { font-size: 0.75rem; font-weight: 500; color: #888; }
 .icon-trigger { height: 36px; padding: 0 0.65rem; border: 1px solid #e0ddd8; border-radius: 7px; background: #fafaf9; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.875rem; font-family: inherit; color: #bbb; transition: border-color 150ms, box-shadow 150ms; white-space: nowrap; min-width: 130px; }
 .icon-trigger:focus, .icon-trigger.open { border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.1); background: #fff; outline: none; }
@@ -57,7 +57,7 @@
 .icon-trigger-text { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .icon-clear { background: none; border: none; color: #ccc; cursor: pointer; padding: 0; display: flex; align-items: center; font-size: 1rem; flex-shrink: 0; line-height: 1; }
 .icon-clear:hover { color: #888; }
-.icon-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 340px; background: #fff; border: 1px solid #e0ddd8; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.12); z-index: 500; display: none; flex-direction: column; overflow: hidden; }
+.icon-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 340px; background: #fff; border: 1px solid #e0ddd8; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.12); z-index: 6001; display: none; flex-direction: column; overflow: hidden; }
 .icon-dropdown.open { display: flex; }
 .picker-tabs { display: flex; border-bottom: 1px solid #f0efec; flex-shrink: 0; }
 .picker-tab { flex: 1; padding: 0.5rem 0.6rem; font-size: 0.75rem; font-weight: 500; font-family: inherit; background: none; border: none; color: #aaa; cursor: pointer; border-bottom: 2px solid transparent; transition: color 120ms, border-color 120ms; }
@@ -143,7 +143,7 @@ input[name="icon"] { display: none; }
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Edit Modal Ã¢â€â‚¬Ã¢â€â‚¬ */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
 .modal-overlay.open { display: flex; }
-.modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); overflow: visible; }
+.modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); overflow: visible; position: relative; z-index: 1; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
 .modal-title { font-size: 0.95rem; font-weight: 600; }
 .modal-close { background: none; border: none; color: #aaa; cursor: pointer; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 120ms, color 120ms; }
@@ -156,6 +156,7 @@ input[name="icon"] { display: none; }
 .modal-fields .icon-picker-wrap { position: relative; }
 .modal-fields .icon-trigger { min-width: unset; width: 100%; }
 .modal-fields .icon-dropdown { width: 100%; left: 0; right: 0; }
+.picker-layer { z-index: 5000 !important; }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Share modal Ã¢â€â‚¬Ã¢â€â‚¬ */
 .share-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: flex-end; justify-content: center; }
@@ -526,7 +527,10 @@ function buildCustomGrid(pickerId){
 }
 function setPickerActive(pickerId,isActive){
     const wrap=document.getElementById('pickerWrap_'+pickerId)||document.querySelector('.icon-picker-wrap #iconTrigger_'+pickerId)?.closest('.icon-picker-wrap');
-    if(wrap) wrap.classList.toggle('picker-active', !!isActive);
+    if(!wrap) return;
+    wrap.classList.toggle('picker-active', !!isActive);
+    const layerHost = wrap.closest('.add-link-card, .add-section-card, .modal');
+    if(layerHost) layerHost.classList.toggle('picker-layer', !!isActive);
 }
 function togglePicker(pickerId){
     const dropdown=document.getElementById('iconDropdown_'+pickerId), trigger=document.getElementById('iconTrigger_'+pickerId), isOpen=dropdown.classList.contains('open');
