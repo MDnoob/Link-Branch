@@ -5,6 +5,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import User, Asset
 from routes.auth import get_current_user
+from security import (
+    normalize_color_hex,
+    normalize_enum,
+    normalize_http_url,
+    sanitize_text,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -59,31 +65,48 @@ def save_settings(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    user.display_name    = display_name[:100] if display_name else None
-    user.bio             = bio[:200]           if bio          else None
-    user.avatar_url      = avatar_url          or None
-    user.avatar_shape    = avatar_shape
-    user.avatar_fit      = avatar_fit if avatar_fit in {"cover", "contain"} else "cover"
+    user.display_name    = sanitize_text(display_name, max_len=100) or None
+    user.bio             = sanitize_text(bio, max_len=200, multiline=True) or None
+    user.avatar_url      = normalize_http_url(avatar_url, max_len=500, allow_static_upload_path=True)
+    user.avatar_shape    = normalize_enum(avatar_shape, allowed={"circle", "rounded", "square"}, default="circle")
+    user.avatar_fit      = normalize_enum(avatar_fit, allowed={"cover", "contain"}, default="cover")
     user.avatar_scale    = max(70, min(140, avatar_scale))
-    user.bg_type         = bg_type
-    user.bg_color        = bg_color
-    user.bg_gradient     = bg_gradient         or None
-    user.bg_image        = bg_image            or None
+    user.bg_type         = normalize_enum(bg_type, allowed={"solid", "gradient", "image"}, default="solid")
+    user.bg_color        = normalize_color_hex(bg_color, default="#f7f6f2")
+    user.bg_gradient     = sanitize_text(bg_gradient, max_len=120) or None
+    user.bg_image        = normalize_http_url(bg_image, max_len=500, allow_static_upload_path=True)
     user.bg_overlay      = max(0, min(80, bg_overlay))
-    user.island_style    = island_style if island_style in {"glass", "solid", "gradient", "image"} else "glass"
-    user.island_color    = island_color or "#ffffff"
-    user.island_gradient = island_gradient or None
-    user.island_image    = island_image or None
+    user.island_style    = normalize_enum(
+        island_style,
+        allowed={"glass", "solid", "gradient", "image"},
+        default="glass",
+    )
+    user.island_color    = normalize_color_hex(island_color, default="#ffffff")
+    user.island_gradient = sanitize_text(island_gradient, max_len=120) or None
+    user.island_image    = normalize_http_url(island_image, max_len=500, allow_static_upload_path=True)
     user.island_overlay  = max(0, min(80, island_overlay))
-    user.btn_style       = btn_style
-    user.btn_fill        = btn_fill
-    user.btn_color       = btn_color
-    user.btn_text_color  = btn_text_color
-    user.btn_hover       = btn_hover
-    user.font_family     = font_family
-    user.font_size       = font_size
-    user.text_name_color = text_name_color
-    user.text_bio_color  = text_bio_color
+    user.btn_style       = normalize_enum(btn_style, allowed={"pill", "rounded", "sharp"}, default="pill")
+    user.btn_fill        = normalize_enum(btn_fill, allowed={"filled", "outline", "shadow"}, default="filled")
+    user.btn_color       = normalize_color_hex(btn_color, default="#1a1a18")
+    user.btn_text_color  = normalize_color_hex(btn_text_color, default="#ffffff")
+    user.btn_hover       = normalize_enum(btn_hover, allowed={"lift", "glow", "darken", "none"}, default="lift")
+    font_key = normalize_enum(
+        font_family,
+        allowed={"inter", "satoshi", "poppins", "playfair display", "merriweather", "dm sans"},
+        default="inter",
+    )
+    font_map = {
+        "inter": "Inter",
+        "satoshi": "Satoshi",
+        "poppins": "Poppins",
+        "playfair display": "Playfair Display",
+        "merriweather": "Merriweather",
+        "dm sans": "DM Sans",
+    }
+    user.font_family     = font_map.get(font_key, "Inter")
+    user.font_size       = normalize_enum(font_size, allowed={"small", "medium", "large", "xlarge"}, default="medium")
+    user.text_name_color = normalize_color_hex(text_name_color, default="#1a1a18")
+    user.text_bio_color  = normalize_color_hex(text_bio_color, default="#555555")
     user.show_branding   = show_branding
 
     db.commit()

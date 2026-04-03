@@ -1,13 +1,14 @@
 import re
 
 import bcrypt
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import User
+from security import enforce_rate_limit, is_valid_email, normalize_email
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -71,6 +72,18 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
     return db.query(User).filter(User.username == username).first()
 
 
+def _auth_rate_limited_template(request: Request, show_register: bool = False):
+    return templates.TemplateResponse(
+        "login.html",
+        {
+            "request": request,
+            "show_register": show_register,
+            "error": "Too many attempts. Please wait a minute and try again.",
+        },
+        status_code=429,
+    )
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     if request.session.get("username"):
@@ -85,6 +98,10 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    try:
+        enforce_rate_limit(request, bucket="auth_login", limit=12, window_seconds=60)
+    except HTTPException:
+        return _auth_rate_limited_template(request)
     normalized_username = (username or "").strip().lower()
     user = db.query(User).filter(User.username == normalized_username).first()
     if not user or not verify_password(password, user.hashed_password):
@@ -112,8 +129,12 @@ def register(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    try:
+        enforce_rate_limit(request, bucket="auth_register", limit=6, window_seconds=300)
+    except HTTPException:
+        return _auth_rate_limited_template(request, show_register=True)
     normalized_username = (username or "").strip().lower()
-    normalized_email = (email or "").strip().lower()
+    normalized_email = normalize_email(email)
     normalized_phone = normalize_phone(phone)
 
     if not USERNAME_RE.match(normalized_username):
@@ -124,6 +145,11 @@ def register(
                 "show_register": True,
                 "error": "Username must be 3-50 chars and use lowercase letters, numbers, _ or . only.",
             },
+        )
+    if not is_valid_email(normalized_email):
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "show_register": True, "error": "Please enter a valid email address."},
         )
     if db.query(User).filter(User.username == normalized_username).first():
         return templates.TemplateResponse(
@@ -180,9 +206,23 @@ def forgot_password_submit(
     confirm_password: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    try:
+        enforce_rate_limit(request, bucket="auth_forgot_password", limit=6, window_seconds=600)
+    except HTTPException:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {"request": request, "error": "Too many attempts. Please wait and try again."},
+            status_code=429,
+        )
     normalized_username = (username or "").strip().lower()
-    normalized_email = (email or "").strip().lower()
+    normalized_email = normalize_email(email)
     normalized_phone = normalize_phone(phone)
+
+    if not is_valid_email(normalized_email):
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {"request": request, "error": "Please enter a valid email address."},
+        )
 
     user = (
         db.query(User)

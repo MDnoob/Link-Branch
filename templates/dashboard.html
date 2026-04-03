@@ -194,7 +194,7 @@ input[name="icon"] { display: none; }
 
 {% block content %}
 <script>
-const USER_ASSETS = [{% for asset in assets %}{"id":{{ asset.id }},"url":"{{ asset.url }}","label":"{{ asset.label|e }}"}{% if not loop.last %},{% endif %}{% endfor %}];
+const USER_ASSETS = {{ assets_payload | tojson }};
 const PUBLIC_BASE_URL = {{ public_base_url | tojson }};
 const MY_PAGE_URL = PUBLIC_BASE_URL + '/profile/{{ user.username }}';
 </script>
@@ -503,6 +503,7 @@ const MY_PAGE_URL = PUBLIC_BASE_URL + '/profile/{{ user.username }}';
 <script>
 const ALL_ICONS = ['github','twitter','instagram','youtube','linkedin','facebook','tiktok','snapchat','pinterest','reddit','tumblr','mastodon','bluesky','threads','twitch','discord','telegram','whatsapp','signal','wechat','line','viber','skype','bandcamp','soundcloud','spotify','shazam','netflix','primevideo','disneyplus','hulu','appletv','vimeo','bilibili','medium','substack','ghost','wordpress','blogger','squarespace','wix','webflow','framer','hashnode','devto','behance','dribbble','figma','sketch','adobecreativecloud','adobephotoshop','adobeillustrator','canva','blender','unity','stackoverflow','codepen','codesandbox','replit','gitlab','bitbucket','jira','notion','linear','asana','clickup','react','vue','angular','svelte','nextdotjs','python','javascript','typescript','rust','go','swift','kotlin','tailwindcss','bootstrap','amazonaws','googlecloud','microsoftazure','digitalocean','heroku','vercel','netlify','supabase','firebase','cloudflare','docker','kubernetes','mongodb','postgresql','mysql','redis','stripe','paypal','shopify','etsy','amazon','kofi','buymeacoffee','patreon','gumroad','slack','zoom','googlemeet','googledrive','dropbox','notion','evernote','steam','epicgames','playstation','xbox','nintendo','linktree','calendly','typeform','mailchimp','bitcoin','ethereum'].sort();
 let activePickerId = null;
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));}
 
 function buildGrid(pickerId, filter='') {
     const grid=document.getElementById('iconGrid_'+pickerId), countEl=document.getElementById('iconCount_'+pickerId), current=document.getElementById('iconValue_'+pickerId).value;
@@ -523,7 +524,7 @@ function buildCustomGrid(pickerId){
     const grid=document.getElementById('customGrid_'+pickerId), current=document.getElementById('iconValue_'+pickerId).value;
     if(!grid)return;
     if(!USER_ASSETS||USER_ASSETS.length===0){grid.innerHTML=`<div class="custom-empty">No custom icons yet.<br><a href="/assets" target="_blank">Upload icons -></a></div>`;return;}
-    grid.innerHTML=USER_ASSETS.map(a=>`<div class="icon-option ${a.url===current?'active':''}" role="option" onclick="selectIcon('${pickerId}','${a.url}','${a.label.replace(/'/g,"\\'")}',true)" title="${a.label}"><img src="${a.url}" alt="${a.label}" loading="lazy" onerror="this.parentElement.style.display='none'"><span>${a.label}</span></div>`).join('');
+    grid.innerHTML=USER_ASSETS.map(a=>{const safeLabel=escapeHtml(a.label||'Asset');const encodedLabel=encodeURIComponent(a.label||'Asset');return `<div class="icon-option ${a.url===current?'active':''}" role="option" onclick="selectIcon('${pickerId}','${a.url}',decodeURIComponent('${encodedLabel}'),true)" title="${safeLabel}"><img src="${a.url}" alt="${safeLabel}" loading="lazy" onerror="this.parentElement.style.display='none'"><span>${safeLabel}</span></div>`;}).join('');
 }
 function setPickerActive(pickerId,isActive){
     const wrap=document.getElementById('pickerWrap_'+pickerId)||document.querySelector('.icon-picker-wrap #iconTrigger_'+pickerId)?.closest('.icon-picker-wrap');
@@ -543,7 +544,16 @@ function selectIcon(pickerId,value,labelOverride,isCustom){
     const trigger=document.getElementById('iconTrigger_'+pickerId), textEl=document.getElementById('iconTriggerText_'+pickerId);
     const imgSrc=isCustom?value:`https://cdn.simpleicons.org/${value}`, label=labelOverride||value;
     trigger.classList.add('selected');
-    textEl.innerHTML=`<img src="${imgSrc}" alt="${label}" width="16" height="16" style="display:inline-block;vertical-align:middle;margin-right:4px">${label}`;
+    textEl.textContent=label;
+    const img=document.createElement('img');
+    img.src=imgSrc;
+    img.alt=label;
+    img.width=16;
+    img.height=16;
+    img.style.display='inline-block';
+    img.style.verticalAlign='middle';
+    img.style.marginRight='4px';
+    textEl.prepend(img);
     if(!trigger.querySelector('.icon-clear')){const btn=document.createElement('button');btn.type='button';btn.className='icon-clear';btn.title='Clear icon';btn.innerHTML='&times;';btn.onclick=e=>{e.stopPropagation();clearIcon(pickerId);};trigger.appendChild(btn);}
     buildGrid(pickerId);
     document.getElementById('iconDropdown_'+pickerId).classList.remove('open');trigger.classList.remove('open');trigger.setAttribute('aria-expanded','false');setPickerActive(pickerId,false);activePickerId=null;
@@ -597,7 +607,7 @@ async function logDashboardShare(platform, linkId=null, path=null){
         await fetch('/api/share',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({platform,linkid:linkId,owner_id:{{ user.id }},path:path||'/profile/{{ user.username }}'})
+            body:JSON.stringify({platform,linkid:linkId,path:path||'/profile/{{ user.username }}'})
         });
     }catch(_){ }
 }

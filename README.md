@@ -112,6 +112,9 @@ It supports custom profile design, shareable redirect links, analytics, assets, 
    - `pip install -r requirements.txt`
 3. Create `.env` with:
    - `SECRET_KEY=<your-secret>`
+   - Optional CORS: `CORS_ALLOW_ORIGINS=https://yourdomain.com,https://www.yourdomain.com`
+   - Optional admin: `SUPERADMIN_USERNAME=<your-username>`
+   - Optional secure cookies in production: `SESSION_HTTPS_ONLY=true`
    - Optional: `DATABASE_URL=sqlite:///./branchtree.db`
 4. Run:
    - `uvicorn main:app --reload`
@@ -154,7 +157,11 @@ It supports custom profile design, shareable redirect links, analytics, assets, 
 ### Analytics API/pages
 - `POST /api/share`
 - `POST /api/click`
+- `POST /api/frontend-error`
 - `GET /analytics`
+
+### Super admin
+- `GET /admin` (accessible only to usernames listed in `SUPERADMIN_USERNAME` or `SUPERADMIN_USERNAMES`)
 
 ## Known Issue (Planned Fix)
 - Geo analytics (country/city) can be inconsistent in local development environments.

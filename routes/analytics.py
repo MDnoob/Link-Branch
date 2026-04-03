@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import logging
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Request
@@ -10,10 +11,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Link, LinkClick, ProfileView, ShareEvent, User
 from routes.auth import get_current_user
+from security import enforce_rate_limit, get_client_ip, sanitize_text
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 REDIRECT_SOURCES = ("public_redirect", "extra_redirect")
+logger = logging.getLogger("uvicorn.error")
 
 
 def _safe_int(value, default=None):
@@ -24,12 +27,8 @@ def _safe_int(value, default=None):
 
 
 def _client_ip(request: Request) -> str | None:
-    forwarded = request.headers.get("x-forwarded-for", "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:64]
-    if request.client and request.client.host:
-        return str(request.client.host)[:64]
-    return None
+    ip = get_client_ip(request)
+    return ip if ip != "unknown" else None
 
 
 def _device_type(user_agent: str | None) -> str:
@@ -97,9 +96,12 @@ def _normalize_click_source(payload: dict) -> str:
 
 
 def _resolve_owner_id(db: Session, request: Request, payload: dict) -> int | None:
-    owner_id = _safe_int(payload.get("owner_id"))
-    if owner_id and db.query(User.id).filter(User.id == owner_id).first():
-        return owner_id
+    # Never trust owner_id from client payload.
+    session_username = request.session.get("username")
+    if session_username:
+        row = db.query(User.id).filter(User.username == session_username).first()
+        if row:
+            return row[0]
 
     link_id = _safe_int(payload.get("linkid")) or _safe_int(payload.get("link_id"))
     if link_id:
@@ -115,17 +117,12 @@ def _resolve_owner_id(db: Session, request: Request, payload: dict) -> int | Non
             if row:
                 return row[0]
 
-    session_username = request.session.get("username")
-    if session_username:
-        row = db.query(User.id).filter(User.username == session_username).first()
-        if row:
-            return row[0]
-
     return None
 
 
 @router.post("/api/share")
 async def api_share(request: Request, db: Session = Depends(get_db)):
+    enforce_rate_limit(request, bucket="api_share", limit=120, window_seconds=60)
     try:
         payload = await request.json()
     except Exception:
@@ -152,6 +149,7 @@ async def api_share(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/api/click")
 async def api_click(request: Request, db: Session = Depends(get_db)):
+    enforce_rate_limit(request, bucket="api_click", limit=240, window_seconds=60)
     try:
         payload = await request.json()
     except Exception:
@@ -187,6 +185,37 @@ async def api_click(request: Request, db: Session = Depends(get_db)):
     except Exception:
         db.rollback()
         return JSONResponse({"ok": False}, status_code=500)
+    return JSONResponse({"ok": True})
+
+
+@router.post("/api/frontend-error")
+async def api_frontend_error(request: Request):
+    enforce_rate_limit(request, bucket="api_frontend_error", limit=30, window_seconds=60)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    message = sanitize_text(payload.get("message"), max_len=500, multiline=True) or "Unknown error"
+    kind = sanitize_text(payload.get("type"), max_len=50) or "error"
+    page = sanitize_text(payload.get("url"), max_len=255) or "-"
+    source = sanitize_text(payload.get("source"), max_len=255) or "-"
+    stack = sanitize_text(payload.get("stack"), max_len=2000, multiline=True)
+    line = _safe_int(payload.get("line"), "")
+    col = _safe_int(payload.get("col"), "")
+    ip = _client_ip(request) or "unknown"
+
+    logger.warning(
+        "frontend_error type=%s page=%s source=%s line=%s col=%s ip=%s message=%s stack=%s",
+        kind,
+        page,
+        source,
+        line,
+        col,
+        ip,
+        message,
+        stack or "-",
+    )
     return JSONResponse({"ok": True})
 
 

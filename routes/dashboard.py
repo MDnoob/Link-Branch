@@ -9,6 +9,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Asset, Link, RedirectLink
 from routes.auth import get_current_user
+from security import (
+    normalize_asset_label,
+    normalize_http_url,
+    normalize_icon_value,
+    sanitize_text,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -18,12 +24,7 @@ MAX_FILE_SIZE = 2 * 1024 * 1024
 
 
 def _normalize_url(value: str) -> str:
-    url = (value or "").strip()
-    if not url:
-        return ""
-    if not url.startswith(("http://", "https://")):
-        url = "https://" + url
-    return url
+    return normalize_http_url(value, max_len=500) or ""
 
 
 def _public_base_url(request: Request) -> str:
@@ -55,6 +56,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     assets = db.query(Asset).filter(Asset.user_id == user.id).order_by(Asset.created_at.desc()).all()
+    assets_payload = [
+        {
+            "id": asset.id,
+            "url": asset.url,
+            "label": sanitize_text(asset.label, max_len=100) or "Asset",
+        }
+        for asset in assets
+    ]
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -63,6 +72,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "links": links,
             "redirect_links": redirect_links,
             "assets": assets,
+            "assets_payload": assets_payload,
             "active_tab": active_tab,
             "public_base_url": _public_base_url(request),
             "active_page": "dashboard",
@@ -82,12 +92,16 @@ def add_link(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
+    cleaned_title = sanitize_text(title, max_len=200)
+    if not cleaned_title:
+        return RedirectResponse(url="/dashboard?tab=links", status_code=302)
+
     max_order = db.query(Link).filter(Link.user_id == user.id).count()
     new_link = Link(
         user_id=user.id,
-        title=title,
+        title=cleaned_title,
         url=_normalize_url(url) or None,
-        icon=icon or None,
+        icon=normalize_icon_value(icon),
         is_section=False,
         sort_order=max_order,
     )
@@ -106,10 +120,14 @@ def add_section(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
+    cleaned_title = sanitize_text(title, max_len=200)
+    if not cleaned_title:
+        return RedirectResponse(url="/dashboard?tab=links", status_code=302)
+
     max_order = db.query(Link).filter(Link.user_id == user.id).count()
     section = Link(
         user_id=user.id,
-        title=title,
+        title=cleaned_title,
         url=None,
         icon=None,
         is_section=True,
@@ -161,10 +179,13 @@ def edit_link(
 
     link = db.query(Link).filter(Link.id == link_id, Link.user_id == user.id).first()
     if link:
-        link.title = title
+        cleaned_title = sanitize_text(title, max_len=200)
+        if not cleaned_title:
+            return RedirectResponse(url="/dashboard?tab=links", status_code=302)
+        link.title = cleaned_title
         if not link.is_section:
             link.url = _normalize_url(url) or None
-            link.icon = icon or None
+            link.icon = normalize_icon_value(icon)
         db.commit()
     return RedirectResponse(url="/dashboard?tab=links", status_code=302)
 
@@ -175,8 +196,15 @@ async def reorder_links(request: Request, db: Session = Depends(get_db)):
     if not user:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    data = await request.json()
-    for index, link_id in enumerate(data.get("order", [])):
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid_payload"}, status_code=400)
+    raw_order = data.get("order", [])
+    if not isinstance(raw_order, list):
+        return JSONResponse({"error": "invalid_payload"}, status_code=400)
+    order = [link_id for link_id in raw_order if isinstance(link_id, int) and not isinstance(link_id, bool)]
+    for index, link_id in enumerate(order[:500]):
         link = db.query(Link).filter(Link.id == link_id, Link.user_id == user.id).first()
         if link:
             link.sort_order = index
@@ -197,7 +225,8 @@ def add_redirect_link(
 
     normalized = _normalize_url(url)
     if normalized:
-        row = RedirectLink(user_id=user.id, title=(title.strip() or "Tracked Link")[:200], url=normalized)
+        safe_title = sanitize_text(title, max_len=200) or "Tracked Link"
+        row = RedirectLink(user_id=user.id, title=safe_title, url=normalized)
         db.add(row)
         db.commit()
     return RedirectResponse(url="/dashboard?tab=extra", status_code=302)
@@ -251,6 +280,8 @@ async def upload_asset(
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         return JSONResponse({"error": "File type not allowed."}, status_code=400)
+    if not (file.content_type or "").lower().startswith("image/"):
+        return JSONResponse({"error": "Only image files are allowed."}, status_code=400)
 
     contents = await file.read()
     if len(contents) > MAX_FILE_SIZE:
@@ -263,10 +294,11 @@ async def upload_asset(
         f.write(contents)
 
     asset_url = f"/static/uploads/{unique_name}"
+    safe_label = normalize_asset_label(label, fallback=os.path.splitext(file.filename or "")[0])
     asset = Asset(
         user_id=user.id,
         filename=unique_name,
-        label=label or os.path.splitext(file.filename or "")[0][:100],
+        label=safe_label,
         url=asset_url,
     )
     db.add(asset)

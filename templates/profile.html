@@ -752,7 +752,6 @@
           body: JSON.stringify({
             platform,
             linkid: linkId,
-            owner_id: {{ user.id }},
             path: window.location.pathname
           })
         });
@@ -793,7 +792,6 @@
     function logClick(linkId, destinationUrl, ref = 'profile') {
       postJsonKeepalive('/api/click', {
         linkid: linkId,
-        owner_id: {{ user.id }},
         destination_url: destinationUrl,
         ref,
         country: geoHint.country,
@@ -816,11 +814,19 @@
       const visual = document.getElementById('sharePreviewVisual');
       if (config.kind === 'link' && config.icon) {
         visual.className = 'share-preview-linkicon';
-        visual.innerHTML = `<img src="${config.icon}" alt="">`;
+        visual.textContent = '';
+        const iconImg = document.createElement('img');
+        iconImg.src = config.icon;
+        iconImg.alt = '';
+        visual.appendChild(iconImg);
       } else {
         visual.className = 'share-preview-avatar';
         {% if user.avatar_url %}
-        visual.innerHTML = `<img src="{{ user.avatar_url }}" alt="{{ user.display_name or user.username }}">`;
+        visual.textContent = '';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = {{ user.avatar_url | tojson }};
+        avatarImg.alt = {{ (user.display_name or user.username) | tojson }};
+        visual.appendChild(avatarImg);
         {% else %}
         visual.textContent = {{ ((user.display_name or user.username)[0]) | tojson }};
         {% endif %}
@@ -947,6 +953,44 @@
     });
 
     loadGeoHint();
+  </script>
+  <script>
+    (function () {
+      const endpoint = '/api/frontend-error';
+      let sent = 0;
+      const maxReports = 3;
+
+      function report(type, payload) {
+        if (sent >= maxReports) return;
+        sent += 1;
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, ...payload }),
+          keepalive: true
+        }).catch(() => {});
+      }
+
+      window.addEventListener('error', function (event) {
+        report('error', {
+          message: String(event.message || '').slice(0, 500),
+          source: String(event.filename || '').slice(0, 255),
+          line: event.lineno || null,
+          col: event.colno || null,
+          stack: event.error && event.error.stack ? String(event.error.stack).slice(0, 2000) : null,
+          url: location.pathname
+        });
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        const reason = event.reason || {};
+        report('unhandledrejection', {
+          message: String(reason.message || reason || 'Unhandled promise rejection').slice(0, 500),
+          stack: reason.stack ? String(reason.stack).slice(0, 2000) : null,
+          url: location.pathname
+        });
+      });
+    })();
   </script>
 </body>
 </html>

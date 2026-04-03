@@ -109,6 +109,7 @@
 {% block extra_scripts %}
 <script>
 let selectedFile = null;
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));}
 const dz = document.getElementById('dropzone');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
@@ -138,8 +139,9 @@ async function uploadAsset() {
         if(data.error){showToast(data.error,true);return;}
         const grid=document.getElementById('assetsGrid'), empty=document.getElementById('emptyState');
         if(empty)empty.style.display='none';
+        const safeLabel = escapeHtml(data.label || 'Asset');
         const card=document.createElement('div'); card.className='asset-card'; card.id=`asset-${data.id}`;
-        card.innerHTML=`<button class="asset-delete" title="Delete" onclick="deleteAsset(${data.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><img class="asset-thumb" src="${data.url}" alt="${data.label}"><div class="asset-label">${data.label}</div><button class="asset-copy" onclick="copyUrl('${data.url}')">Copy URL</button>`;
+        card.innerHTML=`<button class="asset-delete" title="Delete" onclick="deleteAsset(${data.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><img class="asset-thumb" src="${data.url}" alt="${safeLabel}"><div class="asset-label">${safeLabel}</div><button class="asset-copy" onclick="copyUrl('${data.url}')">Copy URL</button>`;
         if(grid) grid.prepend(card);
         const countEl=document.getElementById('assetsCount'); countEl.textContent=parseInt(countEl.textContent||'0')+1;
         selectedFile=null; document.getElementById('fileInput').value=''; document.getElementById('assetLabel').value=''; document.getElementById('uploadPreview').style.display='none';

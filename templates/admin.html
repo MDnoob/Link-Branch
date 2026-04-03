@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin Dashboard - Link Branch{% endblock %}
+
+{% block extra_styles %}
+.main { padding: 2rem 2.5rem; max-width: 1100px; }
+.page-title { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+.page-subtitle { font-size: 0.84rem; color: #777; margin-top: 0.25rem; }
+.kpi-grid { margin-top: 1.25rem; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0.75rem; }
+.kpi-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 0.85rem 0.95rem; }
+.kpi-label { font-size: 0.75rem; color: #888; }
+.kpi-value { font-size: 1.15rem; font-weight: 700; margin-top: 0.2rem; }
+.section { margin-top: 1rem; background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1rem 1.1rem; }
+.section-title { font-size: 0.76rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; font-size: 0.8rem; border-bottom: 1px solid #f0efec; padding: 0.5rem 0.2rem; }
+.table th { color: #888; font-weight: 600; }
+.table tr:last-child td { border-bottom: none; }
+@media (max-width: 980px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .main { padding: 1.25rem 1rem; } }
+{% endblock %}
+
+{% block content %}
+<main class="main">
+    <h1 class="page-title">Super Admin Dashboard</h1>
+    <p class="page-subtitle">Global usage and account statistics</p>
+
+    <section class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value">{{ summary.users_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Active Users</div><div class="kpi-value">{{ summary.users_active }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Links</div><div class="kpi-value">{{ summary.links_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Sections</div><div class="kpi-value">{{ summary.sections_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Redirect Links</div><div class="kpi-value">{{ summary.redirect_links_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Assets</div><div class="kpi-value">{{ summary.assets_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Profile Views</div><div class="kpi-value">{{ summary.profile_views_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Link Clicks</div><div class="kpi-value">{{ summary.clicks_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Shares</div><div class="kpi-value">{{ summary.shares_total }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">New Users (7d)</div><div class="kpi-value">{{ summary.new_users_7d }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Views (7d)</div><div class="kpi-value">{{ summary.views_7d }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Clicks (7d)</div><div class="kpi-value">{{ summary.clicks_7d }}</div></div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Top Profiles By Views</h2>
+        <table class="table">
+            <thead><tr><th>Username</th><th>Views</th><th>Clicks</th></tr></thead>
+            <tbody>
+                {% for row in top_profiles %}
+                <tr>
+                    <td>@{{ row.username }}</td>
+                    <td>{{ row.views }}</td>
+                    <td>{{ row.clicks }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3">No analytics data yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Latest Registered Users</h2>
+        <table class="table">
+            <thead><tr><th>Username</th><th>Email</th><th>Joined</th></tr></thead>
+            <tbody>
+                {% for member in latest_users %}
+                <tr>
+                    <td>@{{ member.username }}</td>
+                    <td>{{ member.email }}</td>
+                    <td>{{ member.created_at.strftime('%Y-%m-%d %H:%M') if member.created_at else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3">No users found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+{% endblock %}

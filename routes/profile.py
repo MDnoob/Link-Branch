@@ -14,6 +14,7 @@ from routes.auth import (
     password_policy_errors,
     verify_password,
 )
+from security import is_valid_email, normalize_email, sanitize_text
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -43,8 +44,19 @@ def update_my_profile(
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
-    normalized_email = (email or "").strip().lower()
+    normalized_email = normalize_email(email)
     normalized_phone = normalize_phone(phone)
+
+    if not is_valid_email(normalized_email):
+        return templates.TemplateResponse(
+            "my_profile.html",
+            {
+                "request": request,
+                "user": user,
+                "active_page": "my_profile",
+                "error": "Please enter a valid email address.",
+            },
+        )
 
     email_owner = db.query(User).filter(User.email == normalized_email, User.id != user.id).first()
     if email_owner:
@@ -75,7 +87,7 @@ def update_my_profile(
                 },
             )
 
-    user.display_name = (display_name or "").strip()[:100] or None
+    user.display_name = sanitize_text(display_name, max_len=100) or None
     user.email = normalized_email
     user.phone = normalized_phone
     db.commit()
