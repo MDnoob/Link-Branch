@@ -15,6 +15,97 @@ from security import (
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+# Common IANA timezones grouped for the dropdown
+TIMEZONES = [
+    "UTC",
+    "Asia/Kolkata",
+    "Asia/Dubai",
+    "Asia/Singapore",
+    "Asia/Tokyo",
+    "Asia/Shanghai",
+    "Asia/Seoul",
+    "Asia/Bangkok",
+    "Asia/Karachi",
+    "Asia/Dhaka",
+    "Asia/Kathmandu",
+    "Asia/Colombo",
+    "Asia/Kabul",
+    "Asia/Tehran",
+    "Asia/Baghdad",
+    "Asia/Riyadh",
+    "Asia/Beirut",
+    "Asia/Jerusalem",
+    "Asia/Tashkent",
+    "Asia/Almaty",
+    "Asia/Yekaterinburg",
+    "Asia/Novosibirsk",
+    "Asia/Krasnoyarsk",
+    "Asia/Irkutsk",
+    "Asia/Yakutsk",
+    "Asia/Vladivostok",
+    "Europe/London",
+    "Europe/Paris",
+    "Europe/Berlin",
+    "Europe/Rome",
+    "Europe/Madrid",
+    "Europe/Amsterdam",
+    "Europe/Brussels",
+    "Europe/Stockholm",
+    "Europe/Oslo",
+    "Europe/Copenhagen",
+    "Europe/Warsaw",
+    "Europe/Prague",
+    "Europe/Vienna",
+    "Europe/Zurich",
+    "Europe/Lisbon",
+    "Europe/Athens",
+    "Europe/Bucharest",
+    "Europe/Helsinki",
+    "Europe/Kiev",
+    "Europe/Moscow",
+    "Europe/Istanbul",
+    "Africa/Cairo",
+    "Africa/Lagos",
+    "Africa/Nairobi",
+    "Africa/Johannesburg",
+    "Africa/Casablanca",
+    "Africa/Accra",
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Anchorage",
+    "America/Halifax",
+    "America/Toronto",
+    "America/Vancouver",
+    "America/Mexico_City",
+    "America/Bogota",
+    "America/Lima",
+    "America/Santiago",
+    "America/Sao_Paulo",
+    "America/Argentina/Buenos_Aires",
+    "America/Caracas",
+    "America/La_Paz",
+    "America/Guayaquil",
+    "America/Manaus",
+    "America/Montevideo",
+    "America/Asuncion",
+    "America/Puerto_Rico",
+    "America/Phoenix",
+    "America/Indiana/Indianapolis",
+    "America/Honolulu",
+    "Pacific/Auckland",
+    "Pacific/Fiji",
+    "Pacific/Guam",
+    "Pacific/Honolulu",
+    "Australia/Sydney",
+    "Australia/Melbourne",
+    "Australia/Brisbane",
+    "Australia/Perth",
+    "Australia/Adelaide",
+    "Australia/Darwin",
+]
+
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request, db: Session = Depends(get_db)):
@@ -26,7 +117,8 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
         "request":     request,
         "user":        user,
         "assets":      assets,
-        "active_page": "settings"
+        "active_page": "settings",
+        "timezones":   TIMEZONES,
     })
 
 
@@ -59,6 +151,7 @@ def save_settings(
     text_name_color: str  = Form("#1a1a18"),
     text_bio_color:  str  = Form("#555555"),
     show_branding:   bool = Form(False),
+    timezone:        str  = Form("UTC"),
     db: Session = Depends(get_db)
 ):
     user = get_current_user(request, db)
@@ -77,9 +170,7 @@ def save_settings(
     user.bg_image        = normalize_http_url(bg_image, max_len=500, allow_static_upload_path=True)
     user.bg_overlay      = max(0, min(80, bg_overlay))
     user.island_style    = normalize_enum(
-        island_style,
-        allowed={"glass", "solid", "gradient", "image"},
-        default="glass",
+        island_style, allowed={"glass", "solid", "gradient", "image"}, default="glass",
     )
     user.island_color    = normalize_color_hex(island_color, default="#ffffff")
     user.island_gradient = sanitize_text(island_gradient, max_len=120) or None
@@ -96,18 +187,17 @@ def save_settings(
         default="inter",
     )
     font_map = {
-        "inter": "Inter",
-        "satoshi": "Satoshi",
-        "poppins": "Poppins",
-        "playfair display": "Playfair Display",
-        "merriweather": "Merriweather",
-        "dm sans": "DM Sans",
+        "inter": "Inter", "satoshi": "Satoshi", "poppins": "Poppins",
+        "playfair display": "Playfair Display", "merriweather": "Merriweather", "dm sans": "DM Sans",
     }
     user.font_family     = font_map.get(font_key, "Inter")
     user.font_size       = normalize_enum(font_size, allowed={"small", "medium", "large", "xlarge"}, default="medium")
     user.text_name_color = normalize_color_hex(text_name_color, default="#1a1a18")
     user.text_bio_color  = normalize_color_hex(text_bio_color, default="#555555")
     user.show_branding   = show_branding
+    # Validate timezone against our allowed list, fall back to UTC
+    from routes.settings import TIMEZONES as _TZ_LIST
+    user.timezone        = timezone if timezone in _TZ_LIST else "UTC"
 
     db.commit()
     return RedirectResponse(url="/settings?saved=1", status_code=302)
