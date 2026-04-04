@@ -94,12 +94,12 @@ def _redirect_bridge_html(next_url: str) -> HTMLResponse:
     (async function () {{
       const target = new URL({next_url!r}, window.location.origin);
       try {{
-        const geoRes = await fetch('https://ipapi.co/json/', {{ cache: 'no-store' }});
+        const geoRes = await fetch('https://speed.cloudflare.com/meta', {{ cache: 'no-store' }});
         if (geoRes.ok) {{
           const geo = await geoRes.json();
-          if (geo.country_name || geo.country) target.searchParams.set('country', geo.country_name || geo.country);
+          if (geo.country) target.searchParams.set('country', geo.country);
           if (geo.city) target.searchParams.set('city', geo.city);
-          if (geo.ip) target.searchParams.set('ip', geo.ip);
+          if (geo.clientIp) target.searchParams.set('ip', geo.clientIp);
         }}
       }} catch (_) {{}}
       window.location.replace(target.toString());
