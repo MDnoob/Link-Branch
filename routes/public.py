@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
+from geo import lookup as _geo_lookup
 from models import Link, LinkClick, ProfileView, RedirectLink, User
 
 router = APIRouter()
@@ -47,19 +48,24 @@ def _referrer_domain(referer: str | None) -> str | None:
     return host or None
 
 
-def _geo_context(request: Request) -> tuple[str | None, str | None]:
-    country = (
-        request.headers.get("cf-ipcountry")
-        or request.headers.get("x-vercel-ip-country")
-        or request.headers.get("x-country-code")
-        or ""
-    ).strip()[:100]
-    city = (
-        request.headers.get("x-vercel-ip-city")
-        or request.headers.get("x-city")
-        or ""
-    ).strip()[:100]
-    return (country or None, city or None)
+async def _geo_context(request: Request) -> tuple[str | None, str | None]:
+    """Resolve geo via IPstack API. Falls back to proxy headers if IPSTACK_KEY is not set."""
+    ip = _client_ip(request)
+    country, city = await _geo_lookup(ip)
+    if not country:
+        # Fallback: proxy headers present on Cloudflare / Vercel deployments
+        country = (
+            request.headers.get("cf-ipcountry")
+            or request.headers.get("x-vercel-ip-country")
+            or request.headers.get("x-country-code")
+            or ""
+        ).strip()[:100] or None
+        city = (
+            request.headers.get("x-vercel-ip-city")
+            or request.headers.get("x-city")
+            or ""
+        ).strip()[:100] or None
+    return country, city
 
 
 def _normalize_destination(url: str | None) -> str:
@@ -73,46 +79,13 @@ def _public_base_url(request: Request) -> str:
     configured = (os.getenv("PUBLIC_BASE_URL") or "").strip()
     if configured:
         return configured.rstrip("/")
-
     host_header = (request.headers.get("host") or request.url.netloc or "").strip()
     if host_header:
         return f"{request.url.scheme}://{host_header}"
     return str(request.base_url).rstrip("/")
 
 
-def _redirect_bridge_html(next_url: str) -> HTMLResponse:
-    html = f"""<!DOCTYPE html>
-<html><head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Opening link...</title>
-  <noscript><meta http-equiv="refresh" content="0;url={next_url}" /></noscript>
-</head>
-<body style="font-family:system-ui,sans-serif;background:#f7f6f2;color:#444;display:grid;place-items:center;min-height:100vh">
-  <p>Opening link...</p>
-  <script>
-    (async function () {{
-      const target = new URL({next_url!r}, window.location.origin);
-      try {{
-        const geoRes = await fetch('https://speed.cloudflare.com/meta', {{ cache: 'no-store' }});
-        if (geoRes.ok) {{
-          const geo = await geoRes.json();
-          if (geo.country) target.searchParams.set('country', geo.country);
-          if (geo.city) target.searchParams.set('city', geo.city);
-          if (geo.clientIp) target.searchParams.set('ip', geo.clientIp);
-        }}
-      }} catch (_) {{}}
-      window.location.replace(target.toString());
-    }})();
-    setTimeout(function() {{
-      window.location.replace(new URL({next_url!r}, window.location.origin).toString());
-    }}, 1400);
-  </script>
-</body></html>"""
-    return HTMLResponse(content=html)
-
-
-def _log_link_click(
+async def _log_link_click(
     db: Session,
     request: Request,
     *,
@@ -122,22 +95,19 @@ def _log_link_click(
     ref: str | None,
     click_source: str,
 ) -> None:
-    country, city = _geo_context(request)
-    country_hint = (request.query_params.get("country") or "")[:100] or None
-    city_hint = (request.query_params.get("city") or "")[:100] or None
-    ip_hint = (request.query_params.get("ip") or "")[:64] or None
+    country, city = await _geo_context(request)
     click = LinkClick(
         user_id=owner_id,
         link_id=link_id,
         destination_url=destination,
         ref=ref,
-        viewer_ip=ip_hint or _client_ip(request),
+        viewer_ip=_client_ip(request),
         user_agent=(request.headers.get("user-agent") or "")[:255] or None,
         referer=(request.headers.get("referer") or "")[:500] or None,
         referrer_domain=_referrer_domain(request.headers.get("referer")),
         device_type=_device_type(request.headers.get("user-agent")),
-        country=country_hint or country,
-        city=city_hint or city,
+        country=country,
+        city=city,
         click_source=click_source,
     )
     db.add(click)
@@ -148,7 +118,7 @@ def _log_link_click(
 
 
 @router.get("/profile/{username}", response_class=HTMLResponse)
-def public_profile(username: str, request: Request, db: Session = Depends(get_db)):
+async def public_profile(username: str, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         return templates.TemplateResponse(
@@ -209,7 +179,7 @@ def public_profile(username: str, request: Request, db: Session = Depends(get_db
         if "show_branding" in params:
             user.show_branding = str(params["show_branding"]).strip().lower() in TRUE_VALUES
     else:
-        country, city = _geo_context(request)
+        country, city = await _geo_context(request)
         view = ProfileView(
             user_id=user.id,
             path=str(request.url.path)[:255],
@@ -239,7 +209,7 @@ def public_profile(username: str, request: Request, db: Session = Depends(get_db
 
 
 @router.get("/l/{link_id}")
-def open_link(link_id: int, request: Request, db: Session = Depends(get_db)):
+async def open_link(link_id: int, request: Request, db: Session = Depends(get_db)):
     link = db.query(Link).filter(Link.id == link_id).first()
     if not link or link.is_section:
         return RedirectResponse(url="/", status_code=302)
@@ -249,26 +219,20 @@ def open_link(link_id: int, request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/", status_code=302)
 
     ref = (request.query_params.get("ref") or "")[:100] or None
-    already_logged = str(request.query_params.get("_logged") or "").strip() == "1"
-    if already_logged:
-        _log_link_click(
-            db,
-            request,
-            owner_id=link.user_id,
-            link_id=link.id,
-            destination=destination,
-            ref=ref,
-            click_source="public_redirect",
-        )
-        return RedirectResponse(url=destination, status_code=302)
-
-    safe_ref = quote_plus(ref or "")
-    next_url = f"/l/{link.id}?_logged=1&ref={safe_ref}"
-    return _redirect_bridge_html(next_url)
+    await _log_link_click(
+        db,
+        request,
+        owner_id=link.user_id,
+        link_id=link.id,
+        destination=destination,
+        ref=ref,
+        click_source="public_redirect",
+    )
+    return RedirectResponse(url=destination, status_code=302)
 
 
 @router.get("/r/{redirect_id}")
-def open_redirect_link(redirect_id: int, request: Request, db: Session = Depends(get_db)):
+async def open_redirect_link(redirect_id: int, request: Request, db: Session = Depends(get_db)):
     row = db.query(RedirectLink).filter(RedirectLink.id == redirect_id).first()
     if not row or not row.is_active:
         return RedirectResponse(url="/", status_code=302)
@@ -278,19 +242,13 @@ def open_redirect_link(redirect_id: int, request: Request, db: Session = Depends
         return RedirectResponse(url="/", status_code=302)
 
     ref = (request.query_params.get("ref") or "")[:100] or None
-    already_logged = str(request.query_params.get("_logged") or "").strip() == "1"
-    if already_logged:
-        _log_link_click(
-            db,
-            request,
-            owner_id=row.user_id,
-            link_id=None,
-            destination=destination,
-            ref=ref,
-            click_source="extra_redirect",
-        )
-        return RedirectResponse(url=destination, status_code=302)
-
-    safe_ref = quote_plus(ref or "")
-    next_url = f"/r/{row.id}?_logged=1&ref={safe_ref}"
-    return _redirect_bridge_html(next_url)
+    await _log_link_click(
+        db,
+        request,
+        owner_id=row.user_id,
+        link_id=None,
+        destination=destination,
+        ref=ref,
+        click_source="extra_redirect",
+    )
+    return RedirectResponse(url=destination, status_code=302)
