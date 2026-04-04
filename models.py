@@ -30,7 +30,7 @@ class User(Base):
     bg_overlay       = Column(Integer, default=0)
 
     # Island card
-    island_style     = Column(String(20), default='glass')   # glass | solid | image
+    island_style     = Column(String(20), default='glass')
     island_color     = Column(String(20), default='#ffffff')
     island_gradient  = Column(String(120), nullable=True)
     island_image     = Column(String(500), nullable=True)
@@ -48,6 +48,9 @@ class User(Base):
     font_size        = Column(String(20), default='medium')
     text_name_color  = Column(String(20), default='#1a1a18')
     text_bio_color   = Column(String(20), default='#555555')
+
+    # Locale / timezone (set at registration, used for dashboard timestamps)
+    timezone         = Column(String(60), default='UTC', nullable=True)
 
     # Misc
     show_branding    = Column(Boolean, default=True)
@@ -68,10 +71,10 @@ class Link(Base):
     id          = Column(Integer, primary_key=True, index=True)
     user_id     = Column(Integer, ForeignKey("users.id"), nullable=False)
     title       = Column(String(200), nullable=False)
-    url         = Column(String(500), nullable=True)    # nullable — sections have no URL
+    url         = Column(String(500), nullable=True)
     icon        = Column(String(255), nullable=True)
     is_active   = Column(Boolean, default=True)
-    is_section  = Column(Boolean, default=False)       # ← NEW: True = text divider, not a link
+    is_section  = Column(Boolean, default=False)
     sort_order  = Column(Integer, default=0)
     created_at  = Column(DateTime, default=datetime.utcnow)
 

@@ -82,6 +82,8 @@ def _migrate_sqlite_users_table() -> None:
             "island_gradient": "TEXT",
             "island_image": "TEXT",
             "island_overlay": "INTEGER DEFAULT 18",
+            # New: user's IANA timezone (e.g. 'Asia/Kolkata')
+            "timezone": "TEXT DEFAULT 'UTC'",
         },
     )
 
