@@ -198,9 +198,20 @@
                 </div>
             </div>
 
-            <!-- Other -->
+            <!-- Preferences -->
             <div class="settings-section">
-                <div class="section-header"><p class="section-heading">Other</p></div>
+                <div class="section-header"><p class="section-heading">Preferences</p></div>
+                <!-- Timezone -->
+                <div class="field" style="margin-bottom:1rem">
+                    <label for="timezone">Your Timezone</label>
+                    <select id="timezone" name="timezone">
+                        {% for tz in timezones %}
+                        <option value="{{ tz }}" {% if (user.timezone or 'UTC') == tz %}selected{% endif %}>{{ tz }}</option>
+                        {% endfor %}
+                    </select>
+                    <span style="font-size:0.7rem;color:#aaa;margin-top:0.2rem">Analytics timestamps are shown in this timezone.</span>
+                </div>
+                <!-- Branding toggle -->
                 <div class="toggle-row"><div><div class="toggle-label">Show "Link Branch" branding</div><div class="toggle-sublabel">Small footer link on your public page</div></div><label class="toggle-switch"><input type="checkbox" name="show_branding" {% if user.show_branding %}checked{% endif %} onchange="updatePreview()"><span class="toggle-track"></span></label></div>
             </div>
 

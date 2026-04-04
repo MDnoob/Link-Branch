@@ -47,6 +47,9 @@
 {% endblock %}
 
 {% block content %}
+{# Pass owner timezone to JS so all click timestamps are converted client-side #}
+<script>const OWNER_TZ = {{ owner_timezone | tojson }};</script>
+
 <main class="main">
     <div class="page-header">
         <div>
@@ -176,23 +179,7 @@
             </tbody>
         </table>
         {% else %}
-        <div class="empty">No profile-click data yet.</div>
-        {% endif %}
-    </section>
-
-    <section class="section">
-        <h2 class="section-title">Share Platforms</h2>
-        {% if share_platforms %}
-        <table class="table">
-            <thead><tr><th>Platform</th><th>Events</th></tr></thead>
-            <tbody>
-                {% for item in share_platforms %}
-                <tr><td>{{ item.platform or 'unknown' }}</td><td>{{ item.count }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-            <div class="empty">No share data yet.</div>
+        <div class="empty">No link click data yet.</div>
         {% endif %}
     </section>
     {% else %}
@@ -200,230 +187,118 @@
         <h2 class="section-title">Top Redirect Links</h2>
         {% if redirect_top_links %}
         <table class="table">
-            <thead><tr><th>Redirect Link</th><th>Destination</th><th>Clicks</th></tr></thead>
+            <thead><tr><th>Link</th><th>Destination</th><th>Clicks</th></tr></thead>
             <tbody>
                 {% for item in redirect_top_links %}
                 <tr>
-                    <td>{{ item.title or ('Redirect #' ~ (item.link_id or '?')) }}</td>
-                    <td>{{ item.destination_url or '-' }}</td>
+                    <td>{{ item.title or ('Link #' ~ item.link_id) }}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ item.destination_url or '—' }}</td>
                     <td>{{ item.clicks }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <div class="empty">No redirect-click data yet.</div>
+        <div class="empty">No redirect click data yet.</div>
         {% endif %}
     </section>
     {% endif %}
 
     <section class="section">
-        <h2 class="section-title">{% if tab == "redirects" %}Recent Redirect Clicks{% else %}Recent Profile Clicks{% endif %}</h2>
+        <h2 class="section-title">Recent Clicks <span style="font-size:0.72rem;color:#aaa;font-weight:400;margin-left:0.4rem">(times in {{ owner_timezone }})</span></h2>
         {% if recent_clicks %}
         <table class="table">
-            <thead>
-                <tr>
-                    <th>Link</th>
-                    <th>Date & Time</th>
-                    <th>IP Address</th>
-                    <th>Country</th>
-                    <th>City</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Time</th><th>Link</th><th>Country</th><th>City</th><th>Device</th><th>Referrer</th></tr></thead>
             <tbody>
                 {% for click, title in recent_clicks %}
                 <tr>
-                    <td>{{ title or click.destination_url or ('Link #' ~ (click.link_id or '?')) }}</td>
-                    <td>{{ click.created_at.strftime('%Y-%m-%d %H:%M') if click.created_at else '-' }}</td>
-                    <td>{{ click.viewer_ip or '-' }}</td>
-                    <td>{{ click.country or '-' }}</td>
-                    <td>{{ click.city or '-' }}</td>
+                    <td class="ts-cell" data-utc="{{ click.created_at.strftime('%Y-%m-%dT%H:%M:%S') }}" style="white-space:nowrap">{{ click.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ title or ('Link #' ~ click.link_id) if click.link_id else '—' }}</td>
+                    <td>{{ click.country or '—' }}</td>
+                    <td>{{ click.city or '—' }}</td>
+                    <td>{{ click.device_type or '—' }}</td>
+                    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ click.referrer_domain or '—' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         <div class="pager">
-            {% set prev_page = recent_page - 1 %}
-            {% set next_page = recent_page + 1 %}
-            <a href="/analytics?tab={{ tab }}&days={{ days }}&page={{ prev_page }}" class="pager-btn {% if recent_page <= 1 %}disabled{% endif %}">Previous</a>
-            <div class="pager-meta">Page {{ recent_page }} of {{ recent_total_pages }} (50 rows per page)</div>
-            <a href="/analytics?tab={{ tab }}&days={{ days }}&page={{ next_page }}" class="pager-btn {% if recent_page >= recent_total_pages %}disabled{% endif %}">Next</a>
+            <a class="pager-btn {% if recent_page <= 1 %}disabled{% endif %}" href="/analytics?tab={{ tab }}&days={{ days }}&page={{ recent_page - 1 }}">← Prev</a>
+            <span class="pager-meta">Page {{ recent_page }} of {{ recent_total_pages }}</span>
+            <a class="pager-btn {% if recent_page >= recent_total_pages %}disabled{% endif %}" href="/analytics?tab={{ tab }}&days={{ days }}&page={{ recent_page + 1 }}">Next →</a>
         </div>
         {% else %}
-        <div class="empty">No click activity yet.</div>
+        <div class="empty">No click data yet.</div>
         {% endif %}
     </section>
+
 </main>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-const trendData = {
-    labels: {{ trend_labels | tojson }},
-    views: {{ trend_views | tojson }},
-    clicks: {{ trend_clicks | tojson }},
-    shares: {{ trend_shares | tojson }}
-};
-const trendMode = {{ trend_mode | tojson }};
-const deviceData = {{ device_split | tojson }};
-let trendState = null;
-
-function drawTrendChart(canvas, data) {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
-    const pad = { t: 18, r: 10, b: 24, l: 34 };
-    const plotW = w - pad.l - pad.r;
-    const plotH = h - pad.t - pad.b;
-    const all = trendMode === 'redirects'
-        ? [...data.clicks]
-        : [...data.views, ...data.clicks, ...data.shares];
-    const maxY = Math.max(5, ...all);
-
-    const x = i => pad.l + (i * plotW / Math.max(1, data.labels.length - 1));
-    const y = v => pad.t + plotH - ((v / maxY) * plotH);
-
-    ctx.strokeStyle = '#eceae6';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-        const yy = pad.t + (plotH / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(pad.l, yy);
-        ctx.lineTo(w - pad.r, yy);
-        ctx.stroke();
-    }
-
-    function line(values, color) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        values.forEach((v, i) => {
-            const xx = x(i), yy = y(v);
-            if (i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
-        });
-        ctx.stroke();
-    }
-
-    if (trendMode === 'redirects') {
-        line(data.clicks, '#7c3aed');
-        ctx.fillStyle = '#888';
-        ctx.font = '11px Inter, sans-serif';
-        ctx.fillText('Redirect Clicks', 8, 16);
-        ctx.fillStyle = '#7c3aed'; ctx.fillRect(6, 9, 2, 8);
-    } else {
-        line(data.views, '#01696f');
-        line(data.clicks, '#3b82f6');
-        line(data.shares, '#f59e0b');
-        ctx.fillStyle = '#888';
-        ctx.font = '11px Inter, sans-serif';
-        ctx.fillText('Views', 8, 16);
-        ctx.fillStyle = '#01696f'; ctx.fillRect(6, 9, 2, 8);
-        ctx.fillStyle = '#888'; ctx.fillText('Clicks', 56, 16);
-        ctx.fillStyle = '#3b82f6'; ctx.fillRect(52, 9, 2, 8);
-        ctx.fillStyle = '#888'; ctx.fillText('Shares', 108, 16);
-        ctx.fillStyle = '#f59e0b'; ctx.fillRect(102, 9, 2, 8);
-    }
-
-    const points = data.labels.map((label, i) => ({
-        x: x(i),
-        y: y(trendMode === 'redirects' ? data.clicks[i] : data.views[i]),
-        label,
-        views: data.views[i],
-        clicks: data.clicks[i],
-        shares: data.shares[i]
-    }));
-    trendState = { canvas, pad, plotW, points };
-}
-
-function drawDeviceDonut(canvas, rows) {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
-    const items = rows.length ? rows : [['unknown', 1]];
-    const total = items.reduce((sum, r) => sum + Number(r[1] || 0), 0) || 1;
-    const colors = ['#01696f', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
-    const cx = 96, cy = h / 2, r = 64;
-    let start = -Math.PI / 2;
-    items.forEach((row, i) => {
-        const val = Number(row[1] || 0);
-        const angle = (val / total) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, r, start, start + angle);
-        ctx.closePath();
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fill();
-        start += angle;
-    });
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 34, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-
-    ctx.font = '11px Inter, sans-serif';
-    items.slice(0, 4).forEach((row, i) => {
-        const y = 22 + i * 18;
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fillRect(190, y - 8, 10, 10);
-        ctx.fillStyle = '#666';
-        const pct = Math.round((Number(row[1] || 0) / total) * 100);
-        ctx.fillText(`${row[0]} (${pct}%)`, 206, y);
-    });
-}
-
-function bindTrendHover() {
-    const tooltip = document.getElementById('trendTooltip');
-    if (!trendState || !trendState.canvas || !tooltip) return;
-    const canvas = trendState.canvas;
-
-    function hideTooltip() {
-        tooltip.classList.remove('show');
-    }
-
-    canvas.onmousemove = function (event) {
-        if (!trendState || !trendState.points.length) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        let nearest = trendState.points[0];
-        for (const p of trendState.points) {
-            if (Math.abs(p.x - x) < Math.abs(nearest.x - x)) nearest = p;
+// ── Timestamp conversion ──────────────────────────────────────────────
+(function convertTimestamps() {
+    const tz = (typeof OWNER_TZ !== 'undefined') ? OWNER_TZ : 'UTC';
+    document.querySelectorAll('.ts-cell[data-utc]').forEach(cell => {
+        const raw = cell.dataset.utc;       // '2025-04-04T10:23:00' (UTC, no Z)
+        try {
+            // Append 'Z' so the browser treats it as UTC
+            const d = new Date(raw + 'Z');
+            if (isNaN(d.getTime())) return;
+            cell.textContent = d.toLocaleString('en-GB', {
+                timeZone: tz,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit',
+                hour12: false
+            });
+        } catch (e) {
+            // Intl.DateTimeFormat doesn't know the tz string — fall back to UTC
+            cell.textContent = raw.replace('T', ' ');
         }
-        if (trendMode === 'redirects') {
-            tooltip.innerHTML = `${nearest.label}<br>Redirect Clicks: ${nearest.clicks}`;
-        } else {
-            tooltip.innerHTML = `${nearest.label}<br>Views: ${nearest.views} | Clicks: ${nearest.clicks} | Shares: ${nearest.shares}`;
-        }
-        const left = Math.max(20, Math.min(canvas.clientWidth - 20, nearest.x));
-        const top = Math.max(20, nearest.y);
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-        tooltip.classList.add('show');
-    };
-    canvas.onmouseleave = hideTooltip;
-}
+    });
+})();
 
-function renderCharts() {
-    drawTrendChart(document.getElementById('trendChart'), trendData);
-    drawDeviceDonut(document.getElementById('deviceChart'), deviceData);
-    bindTrendHover();
-}
+// ── Chart data from server ────────────────────────────────────────────
+const trendLabels = {{ trend_labels | tojson }};
+const trendViews  = {{ trend_views  | tojson }};
+const trendClicks = {{ trend_clicks | tojson }};
+const trendShares = {{ trend_shares | tojson }};
+const trendMode   = {{ trend_mode   | tojson }};
+const deviceSplit = {{ device_split | tojson }};
 
-window.addEventListener('resize', renderCharts);
-renderCharts();
+Chart.defaults.font.family = "inherit";
+Chart.defaults.font.size   = 11;
+
+// ── Trend chart ───────────────────────────────────────────────────────
+(function buildTrendChart() {
+    const ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+    const datasets = trendMode === 'redirects'
+        ? [{ label: 'Redirect Clicks', data: trendClicks, borderColor: '#01696f', backgroundColor: 'rgba(1,105,111,0.08)', fill: true, tension: 0.35, pointRadius: 2, pointHoverRadius: 4 }]
+        : [
+            { label: 'Views',  data: trendViews,  borderColor: '#01696f', backgroundColor: 'rgba(1,105,111,0.08)', fill: true, tension: 0.35, pointRadius: 2, pointHoverRadius: 4 },
+            { label: 'Clicks', data: trendClicks, borderColor: '#0c8fa0', backgroundColor: 'transparent', fill: false, tension: 0.35, pointRadius: 2, pointHoverRadius: 4, borderDash: [4,3] },
+            { label: 'Shares', data: trendShares, borderColor: '#e6a817', backgroundColor: 'transparent', fill: false, tension: 0.35, pointRadius: 2, pointHoverRadius: 4, borderDash: [2,4] },
+          ];
+    new Chart(ctx, { type: 'line', data: { labels: trendLabels, datasets }, options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        scales: { x: { ticks: { maxTicksLimit: 8, maxRotation: 0 }, grid: { color: 'rgba(0,0,0,0.04)' } }, y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.04)' } } },
+        plugins: { legend: { display: trendMode !== 'redirects', labels: { boxWidth: 10, padding: 12 } } }
+    }});
+})();
+
+// ── Device donut chart ────────────────────────────────────────────────
+(function buildDeviceChart() {
+    const ctx = document.getElementById('deviceChart');
+    if (!ctx || !deviceSplit.length) return;
+    const labels = deviceSplit.map(r => r[0]);
+    const values = deviceSplit.map(r => r[1]);
+    const colors = ['#01696f','#0c8fa0','#e6a817','#aaa','#ccc'];
+    new Chart(ctx, { type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderWidth: 1, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10 } } } }
+    });
+})();
 </script>
 {% endblock %}
