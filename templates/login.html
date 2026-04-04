@@ -51,12 +51,24 @@
         @keyframes fadeForm { from { opacity: 0; } to { opacity: 1; } }
         .hidden { display: none; }
         label { display: block; font-size: 0.78rem; font-weight: 600; color: #53514c; margin-bottom: 0.25rem; }
-        input {
+        input, select {
             width: 100%; height: 40px; border-radius: 10px; border: 1px solid #ddd8cf;
             padding: 0 0.75rem; background: #fff; font: inherit; font-size: 0.93rem;
             margin-bottom: 0.8rem; transition: border-color 120ms, box-shadow 120ms;
+            appearance: none; -webkit-appearance: none;
         }
-        input:focus { outline: none; border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.12); }
+        input:focus, select:focus { outline: none; border-color: #01696f; box-shadow: 0 0 0 3px rgba(1,105,111,0.12); }
+        .select-wrap { position: relative; margin-bottom: 0.8rem; }
+        .select-wrap select { margin-bottom: 0; }
+        .select-wrap::after {
+            content: '';
+            position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #888;
+            pointer-events: none;
+        }
         .meta-row { display: flex; justify-content: flex-end; margin-top: -0.4rem; margin-bottom: 0.8rem; }
         .link-mini { font-size: 0.76rem; color: #01696f; text-decoration: none; font-weight: 600; }
         .link-mini:hover { text-decoration: underline; }
@@ -73,6 +85,7 @@
         .checks li { font-size: 0.74rem; color: #9a9790; display: flex; gap: 0.35rem; align-items: center; }
         .checks li.ok { color: #166534; }
         .checks li span { width: 11px; text-align: center; font-weight: 700; }
+        .tz-hint { font-size: 0.72rem; color: #9a9790; margin-top: -0.55rem; margin-bottom: 0.8rem; }
     </style>
 </head>
 <body>
@@ -115,17 +128,27 @@
         <label for="reg_phone">Phone Number</label>
         <input type="text" id="reg_phone" name="phone" placeholder="+919999999999" required>
 
+        <label for="reg_timezone">Your Timezone</label>
+        <div class="select-wrap">
+            <select id="reg_timezone" name="timezone" required>
+                {% for tz_value, tz_label in timezones %}
+                <option value="{{ tz_value }}" {% if tz_value == 'Asia/Kolkata' %}selected{% endif %}>{{ tz_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <p class="tz-hint">Used to display timestamps in your dashboard in your local time.</p>
+
         <label for="reg_password">Password</label>
         <input type="password" id="reg_password" name="password" placeholder="Create password" required oninput="updatePasswordChecks(this.value)">
 
         <div class="checks">
             <p>Password requirements</p>
             <ul>
-                <li id="c_len"><span>•</span>At least 8 characters</li>
-                <li id="c_upper"><span>•</span>One uppercase letter</li>
-                <li id="c_lower"><span>•</span>One lowercase letter</li>
-                <li id="c_digit"><span>•</span>One number</li>
-                <li id="c_symbol"><span>•</span>One special character</li>
+                <li id="c_len"><span>&bull;</span>At least 8 characters</li>
+                <li id="c_upper"><span>&bull;</span>One uppercase letter</li>
+                <li id="c_lower"><span>&bull;</span>One lowercase letter</li>
+                <li id="c_digit"><span>&bull;</span>One number</li>
+                <li id="c_symbol"><span>&bull;</span>One special character</li>
             </ul>
         </div>
 
@@ -146,7 +169,7 @@ function setCheck(id, ok) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle('ok', ok);
-    el.querySelector('span').textContent = ok ? '✓' : '•';
+    el.querySelector('span').textContent = ok ? '\u2713' : '\u2022';
 }
 
 function updatePasswordChecks(value) {
@@ -157,6 +180,17 @@ function updatePasswordChecks(value) {
     setCheck('c_digit', /\d/.test(v));
     setCheck('c_symbol', /[^A-Za-z0-9]/.test(v));
 }
+
+// Auto-detect browser timezone and pre-select if available in the list
+(function() {
+    try {
+        const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const sel = document.getElementById('reg_timezone');
+        if (!detected || !sel) return;
+        const opt = Array.from(sel.options).find(o => o.value === detected);
+        if (opt) opt.selected = true;
+    } catch (_) {}
+})();
 </script>
 </body>
 </html>

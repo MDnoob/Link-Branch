@@ -707,7 +707,6 @@
     const profileUsername = {{ user.username | tojson }};
     const shareModal = document.getElementById('shareModal');
     const toast = document.getElementById('toast');
-    let geoHint = { country: null, city: null, ip: null };
 
     let activeShare = {
       kind: 'page',
@@ -758,19 +757,6 @@
       } catch (_) {}
     }
 
-    async function loadGeoHint() {
-      try {
-        const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
-        geoHint = {
-          country: data.country_name || data.country || null,
-          city: data.city || null,
-          ip: data.ip || null
-        };
-      } catch (_) {}
-    }
-
     function postJsonKeepalive(url, payload) {
       const body = JSON.stringify(payload);
       try {
@@ -780,23 +766,14 @@
           return;
         }
       } catch (_) {}
-
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        keepalive: true
-      }).catch(() => {});
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
     }
 
     function logClick(linkId, destinationUrl, ref = 'profile') {
       postJsonKeepalive('/api/click', {
         linkid: linkId,
         destination_url: destinationUrl,
-        ref,
-        country: geoHint.country,
-        city: geoHint.city,
-        viewer_ip: geoHint.ip
+        ref
       });
     }
 
@@ -864,7 +841,7 @@
         const platform = btn.dataset.platform;
         const url = absoluteUrl(activeShare.path);
         const eu = encodeURIComponent(url);
-        const et = encodeURIComponent(activeShare.kind === 'link' ? activeShare.title : `${profileTitle} — check out my links!`);
+        const et = encodeURIComponent(activeShare.kind === 'link' ? activeShare.title : `${profileTitle} \u2014 check out my links!`);
 
         if (platform === 'copy') {
           await copyText(url); await logShare('copy', activeShare.linkId);
@@ -951,8 +928,6 @@
         if (linkId && destinationUrl) logClick(linkId, destinationUrl, 'profile_button');
       });
     });
-
-    loadGeoHint();
   </script>
   <script>
     (function () {
