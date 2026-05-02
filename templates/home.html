@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link Branch — Your Personal Link Hub</title>
+  <meta name="description" content="Link Branch lets you share all your links in one beautiful, customizable page. Track clicks, views, and countries — all in real time.">
+  <meta name="keywords" content="link in bio, linktree alternative, link hub, personal link page, link branch">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="{{ public_base_url }}/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Link Branch — Your Personal Link Hub">
+  <meta property="og:description" content="Share all your links in one beautiful page. Real-time analytics. Fully customizable.">
+  <meta property="og:url" content="{{ public_base_url }}/">
+  <meta property="og:site_name" content="Link Branch">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Link Branch — Your Personal Link Hub">
+  <meta name="twitter:description" content="Share all your links in one beautiful page. Real-time analytics. Fully customizable.">
+
+  <!-- JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Link Branch",
+    "url": "{{ public_base_url }}",
+    "description": "Link Branch lets you share all your links in one beautiful, customizable page.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "{{ public_base_url }}/profile/{username}",
+      "query-input": "required name=username"
+    }
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --teal:        #01696f;
+      --teal-dark:   #0c4e54;
+      --teal-deeper: #0f3638;
+      --bg:          #f7f6f2;
+      --surface:     #ffffff;
+      --text:        #1d1d1b;
+      --muted:       #6f6d69;
+      --border:      rgba(0,0,0,0.08);
+      --radius:      16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(1.25rem, 5vw, 3rem);
+      height: 60px;
+      background: rgba(247,246,242,0.82);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      transition: box-shadow 200ms;
+    }
+    nav.scrolled { box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+    .nav-brand { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--text); }
+    .brand-mark {
+      width: 30px; height: 30px; border-radius: 9px;
+      background: linear-gradient(135deg, #01696f, #0c4e54);
+      display: grid; place-items: center;
+      color: #fff; font-weight: 700; font-size: 1rem; flex-shrink: 0;
+    }
+    .nav-brand span { font-weight: 700; font-size: 1rem; letter-spacing: -0.02em; }
+    .nav-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .btn-ghost {
+      height: 36px; padding: 0 1rem; border-radius: 10px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+      transition: background 140ms, border-color 140ms;
+    }
+    .btn-ghost:hover { background: rgba(0,0,0,0.05); }
+    .btn-primary {
+      height: 36px; padding: 0 1.1rem; border-radius: 10px;
+      border: none; background: var(--teal);
+      color: #fff; font: inherit; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+      transition: background 140ms, transform 100ms;
+    }
+    .btn-primary:hover { background: var(--teal-dark); }
+    .btn-primary:active { transform: translateY(1px); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100svh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 6rem clamp(1.25rem, 5vw, 3rem) 4rem;
+      position: relative; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 30%, rgba(1,105,111,0.13), transparent),
+        radial-gradient(ellipse 50% 40% at 80% 70%, rgba(42,87,255,0.09), transparent),
+        radial-gradient(ellipse 40% 60% at 60% 10%, rgba(1,105,111,0.07), transparent);
+    }
+    /* Floating orbs */
+    .orb {
+      position: absolute; border-radius: 50%; pointer-events: none; z-index: 0;
+      filter: blur(60px); opacity: 0.5;
+      animation: float linear infinite;
+    }
+    .orb-1 { width: 300px; height: 300px; background: rgba(1,105,111,0.18); top: 10%; left: 5%; animation-duration: 18s; }
+    .orb-2 { width: 200px; height: 200px; background: rgba(42,87,255,0.12); bottom: 15%; right: 8%; animation-duration: 22s; animation-delay: -8s; }
+    .orb-3 { width: 150px; height: 150px; background: rgba(1,105,111,0.1); top: 50%; left: 50%; animation-duration: 26s; animation-delay: -14s; }
+    @keyframes float {
+      0%   { transform: translate(0, 0) scale(1); }
+      25%  { transform: translate(30px, -20px) scale(1.04); }
+      50%  { transform: translate(-10px, 30px) scale(0.97); }
+      75%  { transform: translate(-30px, -10px) scale(1.02); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 740px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(1,105,111,0.1); border: 1px solid rgba(1,105,111,0.2);
+      color: var(--teal-dark); border-radius: 999px;
+      padding: 0.3rem 0.85rem; font-size: 0.78rem; font-weight: 600;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 600ms 100ms cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--teal); animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      font-weight: 700; line-height: 1.08;
+      letter-spacing: -0.03em;
+      animation: fadeUp 600ms 200ms cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .hero-accent { color: var(--teal); }
+    .hero-sub {
+      margin-top: 1.25rem;
+      font-size: clamp(1rem, 2vw, 1.18rem);
+      color: var(--muted); line-height: 1.6; max-width: 520px; margin-inline: auto;
+      animation: fadeUp 600ms 320ms cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .hero-cta {
+      display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;
+      margin-top: 2.25rem;
+      animation: fadeUp 600ms 440ms cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .btn-hero {
+      height: 48px; padding: 0 1.75rem; border-radius: 14px;
+      border: none; background: var(--teal);
+      color: #fff; font: inherit; font-size: 0.97rem; font-weight: 700;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;
+      box-shadow: 0 4px 20px rgba(1,105,111,0.3);
+      transition: background 140ms, transform 100ms, box-shadow 140ms;
+    }
+    .btn-hero:hover { background: var(--teal-dark); box-shadow: 0 6px 28px rgba(1,105,111,0.38); transform: translateY(-1px); }
+    .btn-hero:active { transform: translateY(0); }
+    .btn-hero-outline {
+      height: 48px; padding: 0 1.75rem; border-radius: 14px;
+      border: 1.5px solid rgba(0,0,0,0.14); background: white;
+      color: var(--text); font: inherit; font-size: 0.97rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+      transition: border-color 140ms, background 140ms, transform 100ms;
+    }
+    .btn-hero-outline:hover { border-color: var(--teal); background: rgba(1,105,111,0.04); transform: translateY(-1px); }
+
+    /* ── LIVE STATS TICKER ── */
+    .stats-bar {
+      position: relative; z-index: 1; margin-top: 3.5rem;
+      display: flex; gap: clamp(1.5rem, 4vw, 3.5rem); justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 600ms 560ms cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700; letter-spacing: -0.03em;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-num .count { display: inline-block; }
+    .stat-label { font-size: 0.78rem; color: var(--muted); font-weight: 500; margin-top: 0.15rem; }
+    .stat-divider { width: 1px; background: var(--border); align-self: stretch; }
+
+    /* ── SCROLL INDICATOR ── */
+    .scroll-hint {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      color: var(--muted); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+      animation: fadeIn 800ms 1s both;
+    }
+    .scroll-arrow {
+      width: 20px; height: 20px;
+      border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+      transform: rotate(45deg);
+      animation: bounce 1.6s ease-in-out infinite;
+    }
+    @keyframes bounce { 0%,100% { transform: rotate(45deg) translateY(0); } 50% { transform: rotate(45deg) translateY(4px); } }
+
+    /* ── SECTION SHARED ── */
+    section { padding: clamp(4rem, 8vw, 7rem) clamp(1.25rem, 5vw, 3rem); }
+    .section-label {
+      display: inline-block; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal);
+      margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+      font-weight: 700; letter-spacing: -0.025em; line-height: 1.12;
+      margin-bottom: 1rem;
+    }
+    .section-sub { font-size: 1rem; color: var(--muted); max-width: 480px; line-height: 1.65; }
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 620ms cubic-bezier(0.16,1,0.3,1), transform 620ms cubic-bezier(0.16,1,0.3,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── FEATURES ── */
+    .features { background: var(--bg); }
+    .features-inner { max-width: 1100px; margin: 0 auto; }
+    .features-header { text-align: center; margin-bottom: 3.5rem; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.75rem;
+      transition: box-shadow 200ms, transform 200ms;
+    }
+    .feature-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.09); transform: translateY(-3px); }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, rgba(1,105,111,0.12), rgba(1,105,111,0.06));
+      display: grid; place-items: center; margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.45rem; }
+    .feature-card p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── HOW IT WORKS ── */
+    .how { background: white; }
+    .how-inner { max-width: 900px; margin: 0 auto; }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+      gap: 2rem; margin-top: 3rem;
+    }
+    .step { text-align: center; }
+    .step-num {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+      color: white; font-weight: 700; font-size: 1.1rem;
+      display: grid; place-items: center; margin: 0 auto 1rem;
+      box-shadow: 0 4px 16px rgba(1,105,111,0.25);
+    }
+    .step h3 { font-size: 0.97rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .step p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+    .step-connector {
+      display: none;
+    }
+    @media (min-width: 640px) {
+      .steps { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: start; }
+      .step-connector { display: flex; align-items: flex-start; padding-top: 24px; color: var(--border); font-size: 1.5rem; }
+    }
+
+    /* ── ANALYTICS PREVIEW ── */
+    .analytics-section { background: var(--bg); }
+    .analytics-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    @media (max-width: 768px) { .analytics-inner { grid-template-columns: 1fr; gap: 2.5rem; } }
+    .analytics-mockup {
+      background: white; border: 1px solid var(--border); border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+      transform: perspective(800px) rotateY(-4deg) rotateX(2deg);
+      transition: transform 400ms cubic-bezier(0.16,1,0.3,1);
+    }
+    .analytics-mockup:hover { transform: perspective(800px) rotateY(0deg) rotateX(0deg); }
+    .mockup-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .mockup-dots { display: flex; gap: 5px; }
+    .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .mockup-dot:nth-child(1) { background: #ff5f57; }
+    .mockup-dot:nth-child(2) { background: #ffbd2e; }
+    .mockup-dot:nth-child(3) { background: #27c840; }
+    .mockup-title { font-size: 0.78rem; color: var(--muted); font-weight: 600; margin-left: auto; }
+    .mockup-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .mockup-kpi {
+      background: var(--bg); border-radius: 10px; padding: 0.85rem 1rem;
+      border: 1px solid var(--border);
+    }
+    .mockup-kpi-val { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .mockup-kpi-label { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+    .mockup-bar-section {}
+    .mockup-bar-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .bar-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; }
+    .bar-country { font-size: 0.75rem; color: var(--muted); width: 80px; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--teal), var(--teal-dark)); transition: width 1s 0.5s cubic-bezier(0.16,1,0.3,1); }
+    .bar-val { font-size: 0.72rem; color: var(--muted); width: 28px; text-align: right; flex-shrink: 0; }
+
+    /* ── CTA STRIP ── */
+    .cta-strip {
+      background: linear-gradient(135deg, var(--teal-deeper) 0%, var(--teal-dark) 50%, #006f76 100%);
+      padding: clamp(3.5rem, 7vw, 6rem) clamp(1.25rem, 5vw, 3rem);
+      text-align: center; color: white;
+      position: relative; overflow: hidden;
+    }
+    .cta-strip::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 30% 50%, rgba(255,255,255,0.05), transparent),
+                  radial-gradient(ellipse 40% 60% at 75% 40%, rgba(255,255,255,0.04), transparent);
+    }
+    .cta-strip-inner { position: relative; z-index: 1; max-width: 600px; margin: 0 auto; }
+    .cta-strip h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 0.9rem; }
+    .cta-strip p { font-size: 1rem; opacity: 0.78; margin-bottom: 2rem; line-height: 1.6; }
+    .btn-cta-white {
+      height: 50px; padding: 0 2rem; border-radius: 14px;
+      border: none; background: white;
+      color: var(--teal-deeper); font: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      transition: transform 120ms, box-shadow 140ms;
+    }
+    .btn-cta-white:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(0,0,0,0.24); }
+    .btn-cta-white:active { transform: translateY(0); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg); border-top: 1px solid var(--border);
+      padding: 2rem clamp(1.25rem, 5vw, 3rem);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+    }
+    footer p { font-size: 0.8rem; color: var(--muted); }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a { font-size: 0.8rem; color: var(--muted); text-decoration: none; transition: color 140ms; }
+    .footer-links a:hover { color: var(--teal); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <a class="nav-brand" href="/">
+    <div class="brand-mark">+</div>
+    <span>Link Branch</span>
+  </a>
+  <div class="nav-actions">
+    <a class="btn-ghost" href="/login">Log in</a>
+    <a class="btn-primary" href="/login?tab=register">Get started free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      Live & free to use
+    </div>
+
+    <h1>One link.<br><span class="hero-accent">Everything you are.</span></h1>
+    <p class="hero-sub">Link Branch gives you a beautiful, customizable page for all your links — with real-time analytics to see who's clicking from where.</p>
+
+    <div class="hero-cta">
+      <a class="btn-hero" href="/login?tab=register">Create your page &rarr;</a>
+      <a class="btn-hero-outline" href="#features">See how it works</a>
+    </div>
+  </div>
+
+  <!-- Live Stats -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-num"><span class="count" data-target="{{ stats.total_clicks }}">0</span>+</div>
+      <div class="stat-label">Links clicked</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-num"><span class="count" data-target="{{ stats.total_users }}">0</span></div>
+      <div class="stat-label">Users</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-num"><span class="count" data-target="{{ stats.total_countries }}">0</span></div>
+      <div class="stat-label">Countries reached</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-num"><span class="count" data-target="{{ stats.total_profile_views }}">0</span>+</div>
+      <div class="stat-label">Profile views</div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="features-inner">
+    <div class="features-header reveal">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything you need,<br>nothing you don't</h2>
+      <p class="section-sub">Built for creators, professionals, and anyone who wants their links organised in one place.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">🔗</div>
+        <h3>Unlimited Links</h3>
+        <p>Add as many links as you want — social profiles, websites, music, anything. Organise them with sections.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">📊</div>
+        <h3>Real-Time Analytics</h3>
+        <p>See every click and profile view in real time. Know which links perform best and where your audience is from.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🎨</div>
+        <h3>Full Customisation</h3>
+        <p>Custom backgrounds, button styles, fonts, colours — make your page look exactly like you want it to.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🌍</div>
+        <h3>Country-Level Insights</h3>
+        <p>Track which countries your visitors are from with geo analytics built right into the dashboard.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">⚡</div>
+        <h3>Lightning Fast</h3>
+        <p>Your page loads instantly. No bloat, no delays — every visitor gets a snappy experience.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">📱</div>
+        <h3>Mobile First</h3>
+        <p>Looks perfect on phones, tablets, and desktops. Share your link anywhere, confident it'll look great.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="how-inner">
+    <div style="text-align:center" class="reveal">
+      <div class="section-label">How it works</div>
+      <h2 class="section-title">Up and running in minutes</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <h3>Create your account</h3>
+        <p>Sign up free in seconds — just a username, email and password.</p>
+      </div>
+      <div class="step-connector reveal">&rsaquo;</div>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <h3>Add your links</h3>
+        <p>Paste in your social profiles, website, portfolio, shop — whatever matters.</p>
+      </div>
+      <div class="step-connector reveal">&rsaquo;</div>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <h3>Customise the look</h3>
+        <p>Pick a background, button style and font that match your brand.</p>
+      </div>
+      <div class="step-connector reveal">&rsaquo;</div>
+      <div class="step reveal">
+        <div class="step-num">4</div>
+        <h3>Share your page</h3>
+        <p>Put <strong>linkbranch.app/yourname</strong> in your Instagram bio and you're done.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ANALYTICS PREVIEW -->
+<section class="analytics-section" id="analytics">
+  <div class="analytics-inner">
+    <div class="reveal">
+      <div class="section-label">Analytics</div>
+      <h2 class="section-title">Know your audience,<br>grow your reach</h2>
+      <p class="section-sub">Every click and profile view is tracked in real time. See your top countries, devices, and referrers — all from your dashboard.</p>
+      <div style="margin-top:2rem">
+        <a class="btn-hero" href="/login?tab=register">Start tracking free</a>
+      </div>
+    </div>
+    <div class="analytics-mockup reveal">
+      <div class="mockup-header">
+        <div class="mockup-dots">
+          <div class="mockup-dot"></div>
+          <div class="mockup-dot"></div>
+          <div class="mockup-dot"></div>
+        </div>
+        <div class="mockup-title">Analytics Dashboard</div>
+      </div>
+      <div class="mockup-kpis">
+        <div class="mockup-kpi">
+          <div class="mockup-kpi-val">{{ stats.total_clicks }}</div>
+          <div class="mockup-kpi-label">Total clicks</div>
+        </div>
+        <div class="mockup-kpi">
+          <div class="mockup-kpi-val">{{ stats.total_profile_views }}</div>
+          <div class="mockup-kpi-label">Profile views</div>
+        </div>
+        <div class="mockup-kpi">
+          <div class="mockup-kpi-val">{{ stats.total_users }}</div>
+          <div class="mockup-kpi-label">Users</div>
+        </div>
+        <div class="mockup-kpi">
+          <div class="mockup-kpi-val">{{ stats.total_countries }}</div>
+          <div class="mockup-kpi-label">Countries</div>
+        </div>
+      </div>
+      <div class="mockup-bar-section">
+        <div class="mockup-bar-label">Top Countries</div>
+        {% for row in stats.top_countries %}
+        <div class="bar-row">
+          <div class="bar-country">{{ row.country }}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:0%" data-width="{{ row.pct }}%"></div></div>
+          <div class="bar-val">{{ row.clicks }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA STRIP -->
+<div class="cta-strip">
+  <div class="cta-strip-inner reveal">
+    <h2>Your link page is waiting</h2>
+    <p>Join the creators already using Link Branch to share their work with the world.</p>
+    <a class="btn-cta-white" href="/login?tab=register">Create your free page &rarr;</a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="nav-brand" style="display:flex;align-items:center;gap:0.5rem;">
+    <div class="brand-mark">+</div>
+    <span style="font-weight:700;font-size:0.9rem;letter-spacing:-0.02em;">Link Branch</span>
+  </div>
+  <p>&copy; {{ year }} Link Branch. All rights reserved.</p>
+  <div class="footer-links">
+    <a href="/login">Login</a>
+    <a href="/login?tab=register">Register</a>
+  </div>
+</footer>
+
+<script>
+// Sticky nav shadow
+const nav = document.getElementById('mainNav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 10);
+}, { passive: true });
+
+// Scroll reveal
+const revealEls = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.12 });
+revealEls.forEach(el => observer.observe(el));
+
+// Animated count-up for stats
+function animateCount(el) {
+  const target = parseInt(el.getAttribute('data-target') || '0', 10);
+  if (!target) { el.textContent = '0'; return; }
+  const duration = 1800;
+  const start = performance.now();
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  function step(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    el.textContent = Math.round(ease(progress) * target).toLocaleString();
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+const statsBar = document.querySelector('.stats-bar');
+const statsObserver = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting) {
+    document.querySelectorAll('.count').forEach(animateCount);
+    statsObserver.disconnect();
+  }
+}, { threshold: 0.5 });
+if (statsBar) statsObserver.observe(statsBar);
+
+// Animate bar fills when analytics mockup scrolls in
+const barFills = document.querySelectorAll('.bar-fill');
+const barObserver = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting) {
+    barFills.forEach(b => { b.style.width = b.getAttribute('data-width'); });
+    barObserver.disconnect();
+  }
+}, { threshold: 0.3 });
+const mockup = document.querySelector('.analytics-mockup');
+if (mockup) barObserver.observe(mockup);
+</script>
+</body>
+</html>
