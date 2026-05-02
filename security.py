@@ -1,5 +1,6 @@
 import os
 import re
+import secrets
 import time
 from collections import defaultdict, deque
 from threading import Lock
@@ -142,16 +143,11 @@ def enforce_rate_limit(
         )
 
 
-def get_super_admin_usernames() -> set[str]:
-    raw = (os.getenv("SUPERADMIN_USERNAMES") or os.getenv("SUPERADMIN_USERNAME") or "").strip()
-    if not raw:
-        return set()
-    items = [sanitize_text(part, max_len=50).lower() for part in raw.split(",")]
-    return {item for item in items if item}
-
-
-def is_super_admin_username(username: str | None) -> bool:
-    candidate = sanitize_text(username, max_len=50).lower()
-    if not candidate:
+def verify_admin_token(token: str | None) -> bool:
+    """Timing-safe comparison of the submitted token against ADMIN_TOKEN env var.
+    Returns False if ADMIN_TOKEN is not configured or the token doesn't match.
+    """
+    expected = (os.getenv("ADMIN_TOKEN") or "").strip()
+    if not expected or not token:
         return False
-    return candidate in get_super_admin_usernames()
+    return secrets.compare_digest(expected, token.strip())

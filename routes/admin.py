@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -9,19 +9,73 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Asset, Link, LinkClick, ProfileView, RedirectLink, ShareEvent, User
 from routes.auth import get_current_user
-from security import is_super_admin_username
+from security import enforce_rate_limit, verify_admin_token
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
+def _is_admin(request: Request) -> bool:
+    """Check if the current session has been authenticated via the admin token."""
+    return request.session.get("admin_authed") is True
+
+
+# ---------------------------------------------------------------------------
+# Admin token login / logout
+# ---------------------------------------------------------------------------
+
+@router.get("/admin/login", response_class=HTMLResponse)
+def admin_login_page(request: Request):
+    if _is_admin(request):
+        return RedirectResponse(url="/admin", status_code=302)
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
+
+@router.post("/admin/login")
+def admin_login(
+    request: Request,
+    token: str = Form(...),
+):
+    try:
+        enforce_rate_limit(request, bucket="admin_login", limit=5, window_seconds=60)
+    except HTTPException:
+        return templates.TemplateResponse(
+            "admin_login.html",
+            {
+                "request": request,
+                "error": "Too many attempts. Please wait a minute and try again.",
+            },
+            status_code=429,
+        )
+
+    if not verify_admin_token(token):
+        return templates.TemplateResponse(
+            "admin_login.html",
+            {"request": request, "error": "Invalid token."},
+            status_code=403,
+        )
+
+    request.session["admin_authed"] = True
+    return RedirectResponse(url="/admin", status_code=302)
+
+
+@router.get("/admin/logout")
+def admin_logout(request: Request):
+    request.session.pop("admin_authed", None)
+    return RedirectResponse(url="/admin/login", status_code=302)
+
+
+# ---------------------------------------------------------------------------
+# Admin dashboard
+# ---------------------------------------------------------------------------
+
 @router.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    if not _is_admin(request):
+        return RedirectResponse(url="/admin/login", status_code=302)
+
+    # Still resolve the regular user so the template can show who's logged in.
     user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    if not is_super_admin_username(user.username):
-        return HTMLResponse("Forbidden", status_code=403)
 
     now = datetime.utcnow()
     seven_days_ago = now - timedelta(days=7)
