@@ -3,10 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ user.display_name or user.username }} | Link Branch</title>
-  <meta name="description" content="{{ user.bio or ((user.display_name or user.username) ~ ' on Link Branch') }}" />
-  <meta property="og:title" content="{{ user.display_name or user.username }}" />
-  <meta property="og:description" content="{{ user.bio or 'Check out my links on Link Branch' }}" />
+
+  {% set _name = user.display_name or user.username %}
+  {% set _bio  = user.bio or (_name ~ ' on Link Branch — check out my links.') %}
+  {% set _url  = public_base_url ~ '/profile/' ~ user.username %}
+
+  <title>{{ _name }} (@{{ user.username }}) | Link Branch</title>
+  <meta name="description" content="{{ _bio }}" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="{{ _url }}" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="profile" />
+  <meta property="og:title"       content="{{ _name }} (@{{ user.username }}) | Link Branch" />
+  <meta property="og:description" content="{{ _bio }}" />
+  <meta property="og:url"         content="{{ _url }}" />
+  <meta property="og:site_name"   content="Link Branch" />
+  {% if user.avatar_url %}
+  <meta property="og:image"       content="{{ user.avatar_url }}" />
+  {% endif %}
+  <meta property="profile:username" content="{{ user.username }}" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary" />
+  <meta name="twitter:title"       content="{{ _name }} (@{{ user.username }}) | Link Branch" />
+  <meta name="twitter:description" content="{{ _bio }}" />
+  {% if user.avatar_url %}
+  <meta name="twitter:image"       content="{{ user.avatar_url }}" />
+  {% endif %}
+
+  <!-- JSON-LD Person -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "url": "{{ _url }}",
+    "name": "{{ _name }}",
+    "mainEntity": {
+      "@type": "Person",
+      "name": "{{ _name }}",
+      "identifier": "{{ user.username }}",
+      "url": "{{ _url }}"
+      {% if user.bio %}, "description": "{{ user.bio }}"{% endif %}
+      {% if user.avatar_url %}, "image": "{{ user.avatar_url }}"{% endif %}
+    }
+  }
+  </script>
 
   {% set font = user.font_family or 'Inter' %}
   {% set fsize = user.font_size or 'medium' %}
