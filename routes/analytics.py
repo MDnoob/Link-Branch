@@ -531,3 +531,130 @@ def analytics_page(request: Request, days: int = 30, db: Session = Depends(get_d
             "recent_total_pages": total_pages,
         },
     )
+
+
+@router.get("/analytics/link/{link_id}", response_class=HTMLResponse)
+def link_analytics_page(link_id: int, request: Request, days: int = 30, db: Session = Depends(get_db)):
+    """Per-link analytics drilldown — scoped to a single link_id."""
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    # Validate the link belongs to this user
+    link = db.query(Link).filter(Link.id == link_id, Link.user_id == user.id).first()
+    if not link:
+        return RedirectResponse(url="/analytics", status_code=302)
+
+    query_days = request.query_params.get("days")
+    if query_days is not None:
+        days = max(7, min(365, _safe_int(query_days, 30)))
+    else:
+        days = max(7, min(365, days))
+
+    since = datetime.utcnow() - timedelta(days=days)
+    base_filter = and_(LinkClick.user_id == user.id, LinkClick.link_id == link_id, LinkClick.created_at >= since)
+
+    # KPIs
+    total_clicks = db.query(func.count(LinkClick.id)).filter(base_filter).scalar() or 0
+    unique_clickers = (
+        db.query(func.count(func.distinct(LinkClick.viewer_ip)))
+        .filter(base_filter, LinkClick.viewer_ip.isnot(None), LinkClick.viewer_ip != "")
+        .scalar() or 0
+    )
+    # CTR: link clicks vs profile views in the same window
+    total_views = (
+        db.query(func.count(ProfileView.id))
+        .filter(ProfileView.user_id == user.id, ProfileView.created_at >= since)
+        .scalar() or 0
+    )
+    ctr = round((total_clicks / total_views) * 100, 1) if total_views else 0.0
+
+    # Click trend by day
+    clicks_rows = (
+        db.query(func.date(LinkClick.created_at).label("d"), func.count(LinkClick.id).label("c"))
+        .filter(base_filter)
+        .group_by(func.date(LinkClick.created_at)).all()
+    )
+    clicks_by_day = {r.d: int(r.c) for r in clicks_rows}
+    trend_labels, trend_clicks = [], []
+    for i in range(days - 1, -1, -1):
+        day = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+        trend_labels.append(day)
+        trend_clicks.append(clicks_by_day.get(day, 0))
+
+    # Device split
+    click_device_rows = (
+        db.query(LinkClick.device_type, func.count(LinkClick.id).label("count"))
+        .filter(base_filter)
+        .group_by(LinkClick.device_type).all()
+    )
+    device_counts: dict[str, int] = {}
+    for device, count in click_device_rows:
+        key = (device or "unknown").lower()
+        device_counts[key] = device_counts.get(key, 0) + int(count or 0)
+    device_split = sorted(device_counts.items(), key=lambda x: x[1], reverse=True)
+
+    # Countries
+    country_rows_raw = (
+        db.query(LinkClick.country, func.count(LinkClick.id).label("count"))
+        .filter(base_filter, LinkClick.country.isnot(None), LinkClick.country != "")
+        .group_by(LinkClick.country).order_by(desc("count")).limit(8).all()
+    )
+    country_rows = [{"country": r.country, "count": int(r.count)} for r in country_rows_raw]
+
+    # Cities
+    city_rows_raw = (
+        db.query(LinkClick.city, func.count(LinkClick.id).label("count"))
+        .filter(base_filter, LinkClick.city.isnot(None), LinkClick.city != "")
+        .group_by(LinkClick.city).order_by(desc("count")).limit(8).all()
+    )
+    city_rows = [{"city": r.city, "count": int(r.count)} for r in city_rows_raw]
+
+    # Top referrers
+    ref_rows = (
+        db.query(LinkClick.referrer_domain, func.count(LinkClick.id).label("count"))
+        .filter(base_filter, LinkClick.referrer_domain.isnot(None), LinkClick.referrer_domain != "")
+        .group_by(LinkClick.referrer_domain).order_by(desc("count")).limit(8).all()
+    )
+    top_referrers = [(r.referrer_domain, int(r.count)) for r in ref_rows]
+
+    # Recent clicks (paginated)
+    page = max(1, _safe_int(request.query_params.get("page"), 1))
+    per_page = 50
+    recent_query = db.query(LinkClick).filter(base_filter)
+    total_recent = recent_query.count()
+    total_pages = max(1, (total_recent + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    recent_clicks = (
+        recent_query.order_by(LinkClick.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "link_analytics.html",
+        {
+            "request": request,
+            "user": user,
+            "active_page": "analytics",
+            "link": link,
+            "days": days,
+            "owner_timezone": user.timezone or "UTC",
+            "summary": {
+                "total_clicks": int(total_clicks),
+                "unique_clickers": int(unique_clickers),
+                "total_views": int(total_views),
+                "ctr": ctr,
+            },
+            "trend_labels": trend_labels,
+            "trend_clicks": trend_clicks,
+            "device_split": device_split,
+            "countries": country_rows,
+            "cities": city_rows,
+            "top_referrers": top_referrers,
+            "recent_clicks": recent_clicks,
+            "recent_page": page,
+            "recent_total_pages": total_pages,
+        },
+    )
