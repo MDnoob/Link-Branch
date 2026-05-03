@@ -1,3 +1,4 @@
+import io
 import os
 import uuid
 from collections import defaultdict
@@ -20,24 +21,30 @@ from security import (
 )
 from storage import delete_asset, save_asset
 
+try:
+    from PIL import Image as PILImage
+    _PILLOW_AVAILABLE = True
+except ImportError:
+    _PILLOW_AVAILABLE = False
+
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
-MAX_FILE_SIZE     = 2 * 1024 * 1024   # 2 MB per file
-USER_STORAGE_CAP  = 20 * 1024 * 1024  # 20 MB total per user
-MAX_UPLOADS_PER_MINUTE = 5            # rate limit: 5 uploads / 60 s per user
+ALLOWED_EXTENSIONS     = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
+SKIP_COMPRESS_EXTS     = {".svg", ".gif"}   # already small / animated
+MAX_FILE_SIZE          = 2 * 1024 * 1024    # 2 MB per file (pre-compression)
+USER_STORAGE_CAP       = 20 * 1024 * 1024   # 20 MB total per user
+MAX_UPLOADS_PER_MINUTE = 5                  # rate limit
+COMPRESS_MAX_DIM       = 1200               # max width or height after resize
+COMPRESS_QUALITY       = 82                 # JPEG/WebP quality (0-100)
 
 # In-memory rate-limit store  {user_id: [datetime, ...]}
-# Lightweight enough for a single-process deployment.
 _upload_timestamps: dict[int, list] = defaultdict(list)
 
 
 def _check_upload_rate(user_id: int) -> bool:
-    """Return True if the user is within the rate limit, False if exceeded."""
     now = datetime.utcnow()
     window_start = now - timedelta(seconds=60)
-    # Keep only timestamps inside the rolling window
     _upload_timestamps[user_id] = [
         t for t in _upload_timestamps[user_id] if t > window_start
     ]
@@ -48,13 +55,53 @@ def _check_upload_rate(user_id: int) -> bool:
 
 
 def _used_storage(user_id: int, db: Session) -> int:
-    """Return total bytes already stored for this user (NULL-safe)."""
     result = (
         db.query(func.coalesce(func.sum(Asset.file_size), 0))
         .filter(Asset.user_id == user_id)
         .scalar()
     )
     return int(result or 0)
+
+
+def _storage_info(user_id: int, db: Session) -> dict:
+    used = _used_storage(user_id, db)
+    return {
+        "used_mb":  round(used / (1024 * 1024), 2),
+        "cap_mb":   USER_STORAGE_CAP // (1024 * 1024),
+        "used_pct": min(100, round(used / USER_STORAGE_CAP * 100, 1)),
+    }
+
+
+def _compress_image(contents: bytes, ext: str) -> tuple[bytes, str]:
+    """
+    Resize to COMPRESS_MAX_DIM on the longest side and re-encode as JPEG.
+    Returns (compressed_bytes, new_ext).  Falls back to original on any error.
+    If Pillow is not installed or the format should be skipped, returns original.
+    """
+    if not _PILLOW_AVAILABLE or ext.lower() in SKIP_COMPRESS_EXTS:
+        return contents, ext
+    try:
+        img = PILImage.open(io.BytesIO(contents))
+        # Convert palette / RGBA to RGB for JPEG
+        if img.mode in ("RGBA", "P", "LA"):
+            background = PILImage.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+        # Resize if needed (preserves aspect ratio)
+        w, h = img.size
+        if max(w, h) > COMPRESS_MAX_DIM:
+            ratio = COMPRESS_MAX_DIM / max(w, h)
+            img = img.resize((int(w * ratio), int(h * ratio)), PILImage.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=COMPRESS_QUALITY, optimize=True)
+        return buf.getvalue(), ".jpg"
+    except Exception:
+        # If anything fails, silently return the original bytes
+        return contents, ext
 
 
 def _normalize_url(value: str) -> str:
@@ -98,13 +145,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         for asset in assets
     ]
 
-    used_bytes = _used_storage(user.id, db)
-    storage_info = {
-        "used_mb":  round(used_bytes / (1024 * 1024), 2),
-        "cap_mb":   USER_STORAGE_CAP // (1024 * 1024),
-        "used_pct": min(100, round(used_bytes / USER_STORAGE_CAP * 100, 1)),
-    }
-
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -117,7 +157,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "active_tab": active_tab,
             "public_base_url": _public_base_url(request),
             "active_page": "dashboard",
-            "storage_info": storage_info,
+            "storage_info": _storage_info(user.id, db),
         },
     )
 
@@ -245,7 +285,7 @@ async def reorder_links(request: Request, db: Session = Depends(get_db)):
     raw_order = data.get("order", [])
     if not isinstance(raw_order, list):
         return JSONResponse({"error": "invalid_payload"}, status_code=400)
-    order = [link_id for link_id in raw_order if isinstance(link_id, int) and not isinstance(link_id, bool)]
+    order = [lid for lid in raw_order if isinstance(lid, int) and not isinstance(lid, bool)]
     for index, link_id in enumerate(order[:500]):
         link = db.query(Link).filter(Link.id == link_id, Link.user_id == user.id).first()
         if link:
@@ -319,42 +359,39 @@ async def upload_asset(
     if not user:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    # --- Rate limit: max 5 uploads per 60 seconds per user ---
+    # Rate limit
     if not _check_upload_rate(user.id):
         return JSONResponse(
             {"error": f"Too many uploads. Max {MAX_UPLOADS_PER_MINUTE} per minute."},
             status_code=429,
         )
 
-    # --- File type validation ---
+    # File type validation
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         return JSONResponse({"error": "File type not allowed."}, status_code=400)
     if not (file.content_type or "").lower().startswith("image/"):
         return JSONResponse({"error": "Only image files are allowed."}, status_code=400)
 
-    # --- Read & size check (per-file cap) ---
+    # Read & per-file size check
     contents = await file.read()
-    file_size = len(contents)
-    if file_size > MAX_FILE_SIZE:
+    if len(contents) > MAX_FILE_SIZE:
         return JSONResponse({"error": "File too large. Max 2 MB per file."}, status_code=400)
 
-    # --- Per-user total storage quota ---
+    # Compress / resize (JPEG conversion for PNG/JPG/WebP)
+    contents, ext = _compress_image(contents, ext)
+    file_size = len(contents)
+
+    # Per-user storage quota
     used = _used_storage(user.id, db)
     if used + file_size > USER_STORAGE_CAP:
         remaining_mb = round((USER_STORAGE_CAP - used) / (1024 * 1024), 2)
         return JSONResponse(
-            {
-                "error": (
-                    f"Storage quota exceeded. "
-                    f"You have {remaining_mb} MB remaining out of "
-                    f"{USER_STORAGE_CAP // (1024*1024)} MB total."
-                )
-            },
+            {"error": f"Storage quota exceeded. {remaining_mb} MB remaining of {USER_STORAGE_CAP // (1024*1024)} MB."},
             status_code=400,
         )
 
-    # --- Save to OCI or local disk ---
+    # Save to OCI / local disk
     unique_name = f"{user.id}_{uuid.uuid4().hex}{ext}"
     asset_url = save_asset(contents, unique_name)
 
@@ -369,7 +406,15 @@ async def upload_asset(
     db.add(asset)
     db.commit()
     db.refresh(asset)
-    return JSONResponse({"id": asset.id, "url": asset.url, "label": asset.label})
+
+    # Return updated storage info so the frontend can refresh the bar
+    si = _storage_info(user.id, db)
+    return JSONResponse({
+        "id": asset.id,
+        "url": asset.url,
+        "label": asset.label,
+        "storage": si,
+    })
 
 
 @router.post("/dashboard/assets/{asset_id}/delete")
@@ -393,12 +438,6 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login", status_code=302)
 
     assets = db.query(Asset).filter(Asset.user_id == user.id).order_by(Asset.created_at.desc()).all()
-    used_bytes = _used_storage(user.id, db)
-    storage_info = {
-        "used_mb":  round(used_bytes / (1024 * 1024), 2),
-        "cap_mb":   USER_STORAGE_CAP // (1024 * 1024),
-        "used_pct": min(100, round(used_bytes / USER_STORAGE_CAP * 100, 1)),
-    }
     return templates.TemplateResponse(
         "assets.html",
         {
@@ -406,6 +445,6 @@ def assets_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "assets": assets,
             "active_page": "assets",
-            "storage_info": storage_info,
+            "storage_info": _storage_info(user.id, db),
         },
     )

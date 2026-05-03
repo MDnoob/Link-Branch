@@ -30,6 +30,19 @@
 .checks li.ok { color: #166534; }
 .checks li span { width: 11px; text-align: center; font-weight: 700; }
 .danger-copy { font-size: 0.79rem; color: #a13636; margin-bottom: 0.8rem; }
+/* ── Storage bar ── */
+.storage-bar-wrap { background: #f7f9f9; border: 1px solid #d4eeec; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 0.4rem; }
+.storage-bar-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.45rem; }
+.storage-bar-label { font-size: 0.72rem; font-weight: 600; color: #01696f; text-transform: uppercase; letter-spacing: 0.06em; }
+.storage-bar-nums { font-size: 0.78rem; color: #888; }
+.storage-bar-nums strong { color: #333; font-weight: 600; }
+.storage-track { height: 5px; background: #ddecea; border-radius: 99px; overflow: hidden; }
+.storage-fill { height: 100%; border-radius: 99px; background: #01696f; transition: width 400ms ease; }
+.storage-fill.warn   { background: #d97706; }
+.storage-fill.danger { background: #b91c1c; }
+.storage-cta { font-size: 0.72rem; color: #888; margin-top: 0.3rem; }
+.storage-cta a { color: #01696f; text-decoration: none; font-weight: 500; }
+.storage-cta a:hover { text-decoration: underline; }
 @media (max-width: 760px) { .main { padding: 1.2rem 1rem; } .row { grid-template-columns: 1fr; } }
 {% endblock %}
 
@@ -82,6 +95,36 @@
             <button type="submit" class="btn">Save details</button>
         </form>
     </section>
+
+    {# ── Asset storage card ── #}
+    {% if storage_info %}
+    {% set si = storage_info %}
+    <section class="card">
+        <h2 class="card-title">Asset Storage</h2>
+        <div class="storage-bar-wrap">
+            <div class="storage-bar-header">
+                <span class="storage-bar-label">Used</span>
+                <span class="storage-bar-nums"><strong>{{ si.used_mb }} MB</strong> of {{ si.cap_mb }} MB</span>
+            </div>
+            <div class="storage-track">
+                <div class="storage-fill{% if si.used_pct >= 90 %} danger{% elif si.used_pct >= 70 %} warn{% endif %}"
+                     style="width: {{ si.used_pct }}%"></div>
+            </div>
+            <p class="storage-cta">
+                {% if si.used_pct >= 90 %}
+                    ⚠️ Almost full —
+                    <a href="/assets">manage your assets</a> to free up space.
+                {% elif si.used_pct >= 70 %}
+                    {{ (si.cap_mb - si.used_mb) | round(2) }} MB remaining —
+                    <a href="/assets">view assets</a>.
+                {% else %}
+                    {{ si.used_pct }}% used ·
+                    <a href="/assets">manage assets</a>
+                {% endif %}
+            </p>
+        </div>
+    </section>
+    {% endif %}
 
     <section class="card">
         <h2 class="card-title">Reset Password</h2>

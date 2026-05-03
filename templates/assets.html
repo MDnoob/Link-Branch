@@ -8,6 +8,18 @@
 .page-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
 .page-subtitle { font-size: 0.825rem; color: #888; margin-top: 0.2rem; }
 .section-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 0.6rem; }
+/* ── Storage bar ── */
+.storage-bar-wrap { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+.storage-bar-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+.storage-bar-label { font-size: 0.75rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.06em; }
+.storage-bar-nums { font-size: 0.78rem; color: #888; }
+.storage-bar-nums strong { color: #333; font-weight: 600; }
+.storage-track { height: 6px; background: #ede9e3; border-radius: 99px; overflow: hidden; }
+.storage-fill { height: 100%; border-radius: 99px; background: #01696f; transition: width 400ms ease; }
+.storage-fill.warn  { background: #d97706; }
+.storage-fill.danger { background: #b91c1c; }
+.storage-hint { font-size: 0.72rem; color: #aaa; margin-top: 0.35rem; }
+/* ── rest of page ── */
 .upload-card { background: #fff; border: 1px solid #e4e2de; border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.75rem; }
 .upload-dropzone { border: 2px dashed #ddd; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 150ms, background 150ms; }
 .upload-dropzone:hover, .upload-dropzone.dragover { border-color: #01696f; background: #f0faf9; }
@@ -55,12 +67,37 @@
         </div>
     </div>
 
+    {# ── Storage bar ── #}
+    {% set si = storage_info %}
+    <div class="storage-bar-wrap">
+        <div class="storage-bar-header">
+            <span class="storage-bar-label">Storage</span>
+            <span class="storage-bar-nums" id="storageNums">
+                <strong>{{ si.used_mb }} MB</strong> of {{ si.cap_mb }} MB used
+            </span>
+        </div>
+        <div class="storage-track">
+            <div class="storage-fill{% if si.used_pct >= 90 %} danger{% elif si.used_pct >= 70 %} warn{% endif %}"
+                 id="storageFill"
+                 style="width: {{ si.used_pct }}%"></div>
+        </div>
+        <div class="storage-hint" id="storageHint">
+            {% if si.used_pct >= 90 %}
+                Almost full — consider deleting unused assets.
+            {% elif si.used_pct >= 70 %}
+                {{ si.cap_mb - si.used_mb | round(2) }} MB remaining.
+            {% else %}
+                Images are auto-compressed on upload. Max 2 MB per file.
+            {% endif %}
+        </div>
+    </div>
+
     <p class="section-label">Upload New Icon</p>
     <div class="upload-card">
         <div class="upload-dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <p>Drop your icon here or <strong>click to browse</strong></p>
-            <span>PNG, JPG, SVG, WebP — max 2MB</span>
+            <span>PNG, JPG, SVG, WebP — max 2 MB &nbsp;·&nbsp; auto-compressed</span>
         </div>
         <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.svg,.webp" onchange="previewFile(this)">
         <div class="upload-preview" id="uploadPreview">
@@ -110,6 +147,20 @@
 <script>
 let selectedFile = null;
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));}
+
+function updateStorageBar(s) {
+    if (!s) return;
+    const fill = document.getElementById('storageFill');
+    const nums = document.getElementById('storageNums');
+    const hint = document.getElementById('storageHint');
+    fill.style.width = s.used_pct + '%';
+    fill.className = 'storage-fill' + (s.used_pct >= 90 ? ' danger' : s.used_pct >= 70 ? ' warn' : '');
+    nums.innerHTML = `<strong>${s.used_mb} MB</strong> of ${s.cap_mb} MB used`;
+    if (s.used_pct >= 90) hint.textContent = 'Almost full — consider deleting unused assets.';
+    else if (s.used_pct >= 70) hint.textContent = `${(s.cap_mb - s.used_mb).toFixed(2)} MB remaining.`;
+    else hint.textContent = 'Images are auto-compressed on upload. Max 2 MB per file.';
+}
+
 const dz = document.getElementById('dropzone');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
@@ -128,6 +179,7 @@ function previewFile(input) {
     document.getElementById('previewSize').textContent=(file.size/1024).toFixed(1)+' KB';
     preview.style.display='flex';
 }
+
 async function uploadAsset() {
     if(!selectedFile){showToast('Please select a file first');return;}
     const label=document.getElementById('assetLabel').value.trim();
@@ -137,18 +189,25 @@ async function uploadAsset() {
         const res=await fetch('/dashboard/assets/upload',{method:'POST',body:form});
         const data=await res.json();
         if(data.error){showToast(data.error,true);return;}
+        // update storage bar
+        updateStorageBar(data.storage);
         const grid=document.getElementById('assetsGrid'), empty=document.getElementById('emptyState');
         if(empty)empty.style.display='none';
+        if(!grid){
+            const g=document.createElement('div');g.className='assets-grid';g.id='assetsGrid';
+            document.getElementById('emptyState').after(g);
+        }
         const safeLabel = escapeHtml(data.label || 'Asset');
         const card=document.createElement('div'); card.className='asset-card'; card.id=`asset-${data.id}`;
         card.innerHTML=`<button class="asset-delete" title="Delete" onclick="deleteAsset(${data.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><img class="asset-thumb" src="${data.url}" alt="${safeLabel}"><div class="asset-label">${safeLabel}</div><button class="asset-copy" onclick="copyUrl('${data.url}')">Copy URL</button>`;
-        if(grid) grid.prepend(card);
+        (document.getElementById('assetsGrid')||grid).prepend(card);
         const countEl=document.getElementById('assetsCount'); countEl.textContent=parseInt(countEl.textContent||'0')+1;
         selectedFile=null; document.getElementById('fileInput').value=''; document.getElementById('assetLabel').value=''; document.getElementById('uploadPreview').style.display='none';
         showToast('Icon uploaded!');
     } catch(e){showToast('Upload failed.',true);}
     finally{btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Upload';btn.disabled=false;}
 }
+
 async function deleteAsset(id) {
     if(!confirm('Delete this icon?'))return;
     await fetch(`/dashboard/assets/${id}/delete`,{method:'POST'});
