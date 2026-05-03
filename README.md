@@ -1,9 +1,21 @@
-﻿# Link Branch
+# Link Branch
 
-`v0.1.1` release.
+`v0.1.1` — **[🌐 Try it live at linkbranch.duckdns.org](http://linkbranch.duckdns.org)**  &nbsp;|&nbsp; **[📂 GitHub Repository](https://github.com/MDnoob/Link-Branch)**
 
 Link Branch is a self-hosted link-in-bio platform built with FastAPI, Jinja2, and SQLite.
-It supports custom profile design, shareable redirect links, analytics, assets, and account management.
+It supports custom profile design, shareable redirect links, deep analytics (including per-link insights), asset management, and full account management.
+
+---
+
+## Live Demo
+
+You can try the full application right now — no setup required:
+
+**[http://linkbranch.duckdns.org](http://linkbranch.duckdns.org)**
+
+Register a free account, build your page, and start sharing your links in minutes.
+
+---
 
 ## What Ships in v0.1.1
 
@@ -22,19 +34,28 @@ It supports custom profile design, shareable redirect links, analytics, assets, 
   - `LinkClick`
   - `ShareEvent`
 - Redirect route with logging:
-  - `GET /l/{link_id}`
+  - `GET /l/{link_id}` — trackable public redirect (appears on your profile)
+  - `GET /r/{redirect_id}` — **stealth redirect link** (does NOT appear on your public profile page, but works in the background and is fully tracked in your analytics dashboard)
 - Share logging endpoint:
   - `POST /api/share`
 - Click logging endpoint:
   - `POST /api/click`
 - Analytics dashboard:
   - `GET /analytics`
-  - KPIs (views, unique visitors, clicks, shares, CTR)
-  - Trend charts
-  - Top links/platforms/referrers
-  - Device split
-  - Country/city aggregation
-  - Recent clicks
+  - Two tabs: **Overview** (profile-button clicks) and **Redirects** (redirect-link clicks) — switch between them seamlessly
+  - KPIs: views, unique visitors, clicks, shares, CTR
+  - Trend charts (daily breakdown)
+  - Top links / platforms / referrers
+  - Device split (desktop / mobile / tablet / bot)
+  - Country & city aggregation (powered by IPstack or Cloudflare/Vercel proxy headers as fallback)
+  - Recent clicks table (paginated)
+- **Per-link analytics drilldown** (`GET /analytics/link/{link_id}`):
+  - Scoped KPIs: total clicks, unique clickers, CTR vs. profile views
+  - Daily click trend chart
+  - Device split for that specific link
+  - Top countries & cities for that link
+  - Top referrers for that link
+  - Recent click log (paginated)
 - Date-range memory:
   - Last selected analytics range is remembered in session
 
@@ -83,6 +104,35 @@ It supports custom profile design, shareable redirect links, analytics, assets, 
 - Upload/manage assets
 - Copy trackable redirect link per dashboard link
 
+---
+
+## Redirect Links — Public vs. Stealth
+
+Link Branch supports two types of redirect links:
+
+| Type | Route | Visible on profile page? | Tracked in analytics? |
+|---|---|---|---|
+| **Profile link** | `/l/{link_id}` | ✅ Yes | ✅ Yes |
+| **Stealth redirect** | `/r/{redirect_id}` | ❌ No | ✅ Yes |
+
+**Stealth redirect links** (`/r/...`) are shareable URLs you can give out on other platforms (email campaigns, DMs, paid ads, etc.) without cluttering your public profile page. They log every click — including device, country, city, referrer — exactly like profile links do, but they never appear in your public link list. You manage them from the dashboard under the Redirects section.
+
+---
+
+## Per-Link Analytics
+
+From your analytics dashboard, click any link in the **Top Links** table to open its dedicated analytics page (`/analytics/link/{link_id}`). You'll see:
+
+- **Total clicks** and **unique clickers** for that link
+- **CTR** calculated against total profile views in the same period
+- **Daily click trend** chart
+- **Device breakdown** specific to that link
+- **Top countries and cities** that clicked that link
+- **Top referrers** driving traffic to that link
+- **Full paginated click log** with timestamps, device, location, and referrer
+
+---
+
 ## Tech Stack
 - FastAPI
 - Uvicorn
@@ -91,35 +141,78 @@ It supports custom profile design, shareable redirect links, analytics, assets, 
 - SQLite (default)
 - bcrypt password hashing
 - Session auth via Starlette `SessionMiddleware`
+- IPstack API (optional) for geo analytics; falls back to Cloudflare/Vercel proxy headers
+
+---
 
 ## Project Structure
-- `main.py`: app bootstrap, router registration, migration helpers
-- `models.py`: SQLAlchemy models
+- `main.py`: app bootstrap, router registration, migration helpers, sitemap + robots.txt
+- `models.py`: SQLAlchemy models (`User`, `Link`, `Asset`, `RedirectLink`, `ProfileView`, `LinkClick`, `ShareEvent`)
 - `database.py`: DB engine/session setup
+- `geo.py`: IP geolocation helper (IPstack + proxy header fallback)
+- `security.py`: rate limiting, input sanitisation, client IP resolution
 - `routes/`:
   - `auth.py`
   - `dashboard.py`
-  - `public.py`
+  - `public.py` — public profile rendering, `/l/{link_id}`, `/r/{redirect_id}`
   - `settings.py`
-  - `analytics.py`
+  - `analytics.py` — main analytics page + per-link drilldown
   - `profile.py`
-- `templates/`: Jinja templates (dashboard, profile, settings, analytics, auth, etc.)
-- `static/uploads/`: uploaded assets
+  - `home.py`
+  - `admin.py`
+- `templates/`: Jinja2 templates (dashboard, profile, settings, analytics, link_analytics, auth, home, etc.)
+- `static/uploads/`: uploaded user assets
+
+---
 
 ## Setup
-1. Create and activate a virtual environment.
-2. Install dependencies:
-   - `pip install -r requirements.txt`
-3. Create `.env` with:
-   - `SECRET_KEY=<your-secret>`
-   - Optional CORS: `CORS_ALLOW_ORIGINS=https://yourdomain.com,https://www.yourdomain.com`
-   - Optional admin: `SUPERADMIN_USERNAME=<your-username>`
-   - Optional secure cookies in production: `SESSION_HTTPS_ONLY=true`
-   - Optional: `DATABASE_URL=sqlite:///./branchtree.db`
-4. Run:
-   - `uvicorn main:app --reload`
-5. Open:
-   - `http://127.0.0.1:8000`
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/MDnoob/Link-Branch.git
+   cd Link-Branch
+   ```
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Create a `.env` file:
+   ```env
+   SECRET_KEY=<your-secret-key>
+
+   # Optional: restrict CORS origins
+   CORS_ALLOW_ORIGINS=https://yourdomain.com
+
+   # Optional: set the public base URL (used in sitemap + share links)
+   PUBLIC_BASE_URL=https://yourdomain.com
+
+   # Optional: grant super-admin access
+   SUPERADMIN_USERNAME=<your-username>
+
+   # Optional: enforce secure cookies in production
+   SESSION_HTTPS_ONLY=true
+
+   # Optional: custom database path
+   DATABASE_URL=sqlite:///./branchtree.db
+
+   # Optional: IPstack API key for geo analytics
+   IPSTACK_KEY=<your-ipstack-key>
+   ```
+5. Run the server:
+   ```bash
+   uvicorn main:app --reload
+   ```
+6. Open in your browser:
+   ```
+   http://127.0.0.1:8000
+   ```
+
+---
 
 ## Core Routes
 
@@ -151,21 +244,33 @@ It supports custom profile design, shareable redirect links, analytics, assets, 
 - `POST /my-profile`
 - `POST /my-profile/password`
 - `POST /my-profile/delete`
-- `GET /profile/{username}`
-- `GET /l/{link_id}`
+- `GET /profile/{username}` — public profile page
+- `GET /l/{link_id}` — tracked profile-link redirect
+- `GET /r/{redirect_id}` — stealth redirect (hidden from public profile)
 
-### Analytics API/pages
+### Analytics
 - `POST /api/share`
 - `POST /api/click`
 - `POST /api/frontend-error`
-- `GET /analytics`
+- `GET /analytics` — main analytics dashboard (Overview + Redirects tabs)
+- `GET /analytics/link/{link_id}` — per-link analytics drilldown
+
+### Utility
+- `GET /health`
+- `GET /robots.txt`
+- `GET /sitemap.xml`
 
 ### Super admin
 - `GET /admin` (accessible only to usernames listed in `SUPERADMIN_USERNAME` or `SUPERADMIN_USERNAMES`)
 
-## Known Issue (Planned Fix)
-- Geo analytics (country/city) can be inconsistent in local development environments.
-- This is expected and will be improved in a future update with stronger production-grade geo handling.
+---
+
+## Known Issues (Planned Fix)
+- Geo analytics (country/city) can be inconsistent in local development environments without an `IPSTACK_KEY`. This is expected — the app falls back to proxy headers, which are only present on deployments behind Cloudflare or Vercel. Configure `IPSTACK_KEY` in `.env` for accurate local geo data.
+
+---
 
 ## Version
 - Current release: `0.1.1`
+- Live demo: [linkbranch.duckdns.org](http://linkbranch.duckdns.org)
+- Repository: [github.com/MDnoob/Link-Branch](https://github.com/MDnoob/Link-Branch)
