@@ -133,6 +133,89 @@ From your analytics dashboard, click any link in the **Top Links** table to open
 
 ---
 
+## Asset Storage — Dual Mode (OCI + Local Disk)
+
+Link Branch ships a `storage.py` module that automatically routes all file uploads to the right backend depending on your configuration. **No code changes are needed to switch between modes.**
+
+### How it works
+
+| Condition | Upload destination | URL stored in DB |
+|---|---|---|
+| OCI env vars **present** | Oracle Cloud Object Storage bucket | `https://objectstorage.…/o/<filename>` |
+| OCI env vars **absent** | `static/uploads/` on local disk | `/static/uploads/<filename>` |
+
+The same logic applies to deletes — `storage.py` checks the stored URL at delete time so mixed-mode deployments (e.g. some old files on disk, new files in OCI) work correctly during migrations.
+
+### Option 1 — Local disk (default, zero config)
+
+No extra steps. Uploaded assets are saved to `static/uploads/` and served directly by the FastAPI `StaticFiles` mount. This is the default when no OCI variables are set.
+
+### Option 2 — Oracle Cloud Object Storage
+
+#### Prerequisites
+1. Create an **OCI account** at [cloud.oracle.com](https://cloud.oracle.com) (Always Free tier is sufficient).
+2. Create a **bucket** in Object Storage and set its **visibility to Public**.
+3. Generate an **API key** for your user under Identity → Users → API Keys. Download the `.pem` private key file.
+4. Note the **fingerprint**, **user OCID**, **tenancy OCID**, **region**, and **namespace** shown in the configuration preview.
+
+#### Upload the private key to your server
+
+```bash
+scp -i "<your-ssh-key>" "<path-to-downloaded.pem>" user@<server-ip>:/path/to/link-branch/oci_private_key.pem
+```
+
+Lock down permissions:
+
+```bash
+chmod 600 /path/to/link-branch/oci_private_key.pem
+```
+
+#### Add OCI variables to `.env`
+
+```env
+OCI_USER_OCID=ocid1.user.oc1..<your-user-ocid>
+OCI_TENANCY_OCID=ocid1.tenancy.oc1..<your-tenancy-ocid>
+OCI_FINGERPRINT=xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx
+OCI_REGION=<region-identifier>        # e.g. eu-amsterdam-1
+OCI_NAMESPACE=<your-object-storage-namespace>
+OCI_BUCKET_NAME=<your-bucket-name>
+OCI_PRIVATE_KEY_PATH=/absolute/path/to/oci_private_key.pem
+```
+
+#### Install the OCI Python SDK
+
+```bash
+source venv/bin/activate
+pip install oci
+```
+
+#### Test the connection
+
+```bash
+python3 -c "
+import oci, os
+from dotenv import load_dotenv
+load_dotenv()
+config = {
+    'user': os.getenv('OCI_USER_OCID'),
+    'fingerprint': os.getenv('OCI_FINGERPRINT'),
+    'tenancy': os.getenv('OCI_TENANCY_OCID'),
+    'region': os.getenv('OCI_REGION'),
+    'key_file': os.getenv('OCI_PRIVATE_KEY_PATH'),
+}
+client = oci.object_storage.ObjectStorageClient(config)
+print('Connected! Namespace:', client.get_namespace().data)
+"
+```
+
+If this prints your namespace, restart the app and new uploads will go directly to your bucket.
+
+#### Migrating existing local files (optional)
+
+Existing files in `static/uploads/` are **not automatically moved**. Their `/static/uploads/...` URLs will continue to work as long as the directory exists on disk. To migrate them, upload each file to the bucket manually (or write a one-time migration script) and update the `url` column in the `assets` table to the OCI URL.
+
+---
+
 ## Tech Stack
 - FastAPI
 - Uvicorn
@@ -142,6 +225,7 @@ From your analytics dashboard, click any link in the **Top Links** table to open
 - bcrypt password hashing
 - Session auth via Starlette `SessionMiddleware`
 - IPstack API (optional) for geo analytics; falls back to Cloudflare/Vercel proxy headers
+- Oracle Cloud Object Storage via `oci` Python SDK (optional; falls back to local disk)
 
 ---
 
@@ -151,6 +235,7 @@ From your analytics dashboard, click any link in the **Top Links** table to open
 - `database.py`: DB engine/session setup
 - `geo.py`: IP geolocation helper (IPstack + proxy header fallback)
 - `security.py`: rate limiting, input sanitisation, client IP resolution
+- `storage.py`: dual-mode asset storage — routes uploads/deletes to OCI or local disk automatically
 - `routes/`:
   - `auth.py`
   - `dashboard.py`
@@ -161,7 +246,7 @@ From your analytics dashboard, click any link in the **Top Links** table to open
   - `home.py`
   - `admin.py`
 - `templates/`: Jinja2 templates (dashboard, profile, settings, analytics, link_analytics, auth, home, etc.)
-- `static/uploads/`: uploaded user assets
+- `static/uploads/`: uploaded user assets (used when OCI is not configured)
 
 ---
 
@@ -181,7 +266,11 @@ From your analytics dashboard, click any link in the **Top Links** table to open
    ```bash
    pip install -r requirements.txt
    ```
-4. Create a `.env` file:
+4. *(Optional)* Install the OCI SDK if you want cloud asset storage:
+   ```bash
+   pip install oci
+   ```
+5. Create a `.env` file:
    ```env
    SECRET_KEY=<your-secret-key>
 
@@ -202,12 +291,21 @@ From your analytics dashboard, click any link in the **Top Links** table to open
 
    # Optional: IPstack API key for geo analytics
    IPSTACK_KEY=<your-ipstack-key>
+
+   # Optional: Oracle Cloud Object Storage (leave blank to use local disk)
+   OCI_USER_OCID=
+   OCI_TENANCY_OCID=
+   OCI_FINGERPRINT=
+   OCI_REGION=
+   OCI_NAMESPACE=
+   OCI_BUCKET_NAME=
+   OCI_PRIVATE_KEY_PATH=
    ```
-5. Run the server:
+6. Run the server:
    ```bash
    uvicorn main:app --reload
    ```
-6. Open in your browser:
+7. Open in your browser:
    ```
    http://127.0.0.1:8000
    ```
