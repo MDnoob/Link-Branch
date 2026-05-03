@@ -15,10 +15,10 @@ from security import (
     normalize_icon_value,
     sanitize_text,
 )
+from storage import delete_asset, save_asset
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
-UPLOAD_DIR = "static/uploads"
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
 MAX_FILE_SIZE = 2 * 1024 * 1024
 
@@ -287,13 +287,12 @@ async def upload_asset(
     if len(contents) > MAX_FILE_SIZE:
         return JSONResponse({"error": "File too large. Max 2MB."}, status_code=400)
 
+    # Always use a random UUID filename — never expose the original filename
     unique_name = f"{user.id}_{uuid.uuid4().hex}{ext}"
-    save_path = os.path.join(UPLOAD_DIR, unique_name)
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    with open(save_path, "wb") as f:
-        f.write(contents)
 
-    asset_url = f"/static/uploads/{unique_name}"
+    # save_asset() routes to OCI or local disk automatically
+    asset_url = save_asset(contents, unique_name)
+
     safe_label = normalize_asset_label(label, fallback=os.path.splitext(file.filename or "")[0])
     asset = Asset(
         user_id=user.id,
@@ -308,16 +307,15 @@ async def upload_asset(
 
 
 @router.post("/dashboard/assets/{asset_id}/delete")
-def delete_asset(asset_id: int, request: Request, db: Session = Depends(get_db)):
+def delete_asset_route(asset_id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=302)
 
     asset = db.query(Asset).filter(Asset.id == asset_id, Asset.user_id == user.id).first()
     if asset:
-        disk_path = os.path.join(UPLOAD_DIR, asset.filename)
-        if os.path.exists(disk_path):
-            os.remove(disk_path)
+        # delete_asset() routes to OCI or local disk based on the stored URL
+        delete_asset(asset.filename, asset.url)
         db.delete(asset)
         db.commit()
     return RedirectResponse(url="/assets", status_code=302)
