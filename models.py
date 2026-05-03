@@ -89,6 +89,9 @@ class Asset(Base):
     filename   = Column(String(255), nullable=False)
     label      = Column(String(100), nullable=True)
     url        = Column(String(500), nullable=False)
+    # file_size stores the byte length of the uploaded file.
+    # Nullable so existing rows (before this migration) stay valid.
+    file_size  = Column(Integer, nullable=True, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="assets")
