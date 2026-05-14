@@ -13,6 +13,7 @@ EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}$")
 HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 ICON_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 UPLOAD_PATH_RE = re.compile(r"^/static/uploads/[A-Za-z0-9_.-]+$")
+UPLOAD_PATH_REL_RE = re.compile(r"^static/uploads/[A-Za-z0-9_.-]+$")
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
 
 
@@ -71,11 +72,15 @@ def normalize_enum(value: str | None, *, allowed: set[str], default: str) -> str
 
 
 def normalize_icon_value(value: str | None) -> str | None:
-    candidate = sanitize_text(value, max_len=255)
+    candidate = sanitize_text(value, max_len=500)
     if not candidate:
         return None
     if UPLOAD_PATH_RE.match(candidate):
         return candidate
+    if UPLOAD_PATH_REL_RE.match(candidate):
+        return f"/{candidate}"
+    if candidate.startswith(("http://", "https://")):
+        return normalize_http_url(candidate, max_len=500)
     slug = candidate.lower()
     if ICON_SLUG_RE.match(slug):
         return slug

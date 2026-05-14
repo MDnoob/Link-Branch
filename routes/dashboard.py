@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from database import get_db
 from models import Asset, Link, RedirectLink
@@ -393,7 +394,13 @@ async def upload_asset(
 
     # Save to OCI / local disk
     unique_name = f"{user.id}_{uuid.uuid4().hex}{ext}"
-    asset_url = save_asset(contents, unique_name)
+    try:
+        # save_asset() routes to OCI or local disk automatically.
+        asset_url = await run_in_threadpool(save_asset, contents, unique_name)
+    except RuntimeError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=503)
+    except Exception:
+        return JSONResponse({"error": "Upload failed. Please try again."}, status_code=503)
 
     safe_label = normalize_asset_label(label, fallback=os.path.splitext(file.filename or "")[0])
     asset = Asset(

@@ -47,7 +47,7 @@ Register a free account, build your page, and start sharing your links in minute
   - Trend charts (daily breakdown)
   - Top links / platforms / referrers
   - Device split (desktop / mobile / tablet / bot)
-  - Country & city aggregation (powered by IPstack or Cloudflare/Vercel proxy headers as fallback)
+  - Country & city aggregation (powered by queued ip-api.com lookups or Cloudflare/Vercel proxy headers as fallback)
   - Recent clicks table (paginated)
 - **Per-link analytics drilldown** (`GET /analytics/link/{link_id}`):
   - Scoped KPIs: total clicks, unique clickers, CTR vs. profile views
@@ -224,7 +224,7 @@ Existing files in `static/uploads/` are **not automatically moved**. Their `/sta
 - SQLite (default)
 - bcrypt password hashing
 - Session auth via Starlette `SessionMiddleware`
-- IPstack API (optional) for geo analytics; falls back to Cloudflare/Vercel proxy headers
+- ip-api.com for server-side geo analytics; bounded queue + cache included, falls back to Cloudflare/Vercel proxy headers
 - Oracle Cloud Object Storage via `oci` Python SDK (optional; falls back to local disk)
 
 ---
@@ -233,7 +233,7 @@ Existing files in `static/uploads/` are **not automatically moved**. Their `/sta
 - `main.py`: app bootstrap, router registration, migration helpers, sitemap + robots.txt
 - `models.py`: SQLAlchemy models (`User`, `Link`, `Asset`, `RedirectLink`, `ProfileView`, `LinkClick`, `ShareEvent`)
 - `database.py`: DB engine/session setup
-- `geo.py`: IP geolocation helper (IPstack + proxy header fallback)
+- `geo.py`: IP geolocation helper (ip-api.com + bounded queue/cache + proxy header fallback)
 - `security.py`: rate limiting, input sanitisation, client IP resolution
 - `storage.py`: dual-mode asset storage — routes uploads/deletes to OCI or local disk automatically
 - `routes/`:
@@ -285,12 +285,19 @@ Existing files in `static/uploads/` are **not automatically moved**. Their `/sta
 
    # Optional: enforce secure cookies in production
    SESSION_HTTPS_ONLY=true
+   ENV=production
+   ENABLE_DOCS=false
 
    # Optional: custom database path
    DATABASE_URL=sqlite:///./branchtree.db
 
-   # Optional: IPstack API key for geo analytics
-   IPSTACK_KEY=<your-ipstack-key>
+   # Optional: backend external-service queue limits
+   GEO_LOOKUP_CONCURRENCY=4
+   GEO_LOOKUP_QUEUE_TIMEOUT_SECONDS=2
+   GEO_LOOKUP_TIMEOUT_SECONDS=3
+   GEO_CACHE_TTL_SECONDS=86400
+   OCI_STORAGE_CONCURRENCY=4
+   OCI_STORAGE_QUEUE_TIMEOUT_SECONDS=15
 
    # Optional: Oracle Cloud Object Storage (leave blank to use local disk)
    OCI_USER_OCID=
@@ -301,7 +308,7 @@ Existing files in `static/uploads/` are **not automatically moved**. Their `/sta
    OCI_BUCKET_NAME=
    OCI_PRIVATE_KEY_PATH=
    ```
-6. Run the server:
+6. Run the development server:
    ```bash
    uvicorn main:app --reload
    ```
@@ -309,6 +316,12 @@ Existing files in `static/uploads/` are **not automatically moved**. Their `/sta
    ```
    http://127.0.0.1:8000
    ```
+
+For production, do not use `--reload`. Set `ENV=production`, configure a real `SECRET_KEY`, and run under your process manager with a command like:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+```
 
 ---
 
@@ -364,7 +377,7 @@ Existing files in `static/uploads/` are **not automatically moved**. Their `/sta
 ---
 
 ## Known Issues (Planned Fix)
-- Geo analytics (country/city) can be inconsistent in local development environments without an `IPSTACK_KEY`. This is expected — the app falls back to proxy headers, which are only present on deployments behind Cloudflare or Vercel. Configure `IPSTACK_KEY` in `.env` for accurate local geo data.
+- Geo analytics (country/city) can be inconsistent in local development environments. This is expected because local/private IPs are skipped and proxy headers are only present on deployments behind Cloudflare or Vercel.
 
 ---
 

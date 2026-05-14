@@ -19,8 +19,34 @@ Public API
 
 import io
 import os
+from contextlib import contextmanager
+from threading import BoundedSemaphore
 
 UPLOAD_DIR = "static/uploads"
+
+
+def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    try:
+        value = int((os.getenv(name) or "").strip())
+    except ValueError:
+        value = default
+    return max(minimum, min(maximum, value))
+
+
+_OCI_CONCURRENCY = _env_int("OCI_STORAGE_CONCURRENCY", 4, minimum=1, maximum=32)
+_OCI_QUEUE_TIMEOUT_SECONDS = _env_int("OCI_STORAGE_QUEUE_TIMEOUT_SECONDS", 15, minimum=1, maximum=120)
+_OCI_QUEUE = BoundedSemaphore(_OCI_CONCURRENCY)
+
+
+@contextmanager
+def _oci_queue_slot():
+    acquired = _OCI_QUEUE.acquire(timeout=_OCI_QUEUE_TIMEOUT_SECONDS)
+    if not acquired:
+        raise RuntimeError("Storage is busy. Please try again in a moment.")
+    try:
+        yield
+    finally:
+        _OCI_QUEUE.release()
 
 # ---------------------------------------------------------------------------
 # Detect whether OCI is configured
@@ -74,15 +100,16 @@ def _oci_public_url(filename: str) -> str:
 
 def _oci_save(contents: bytes, filename: str) -> str:
     """Upload bytes to OCI and return the public URL."""
-    client    = _oci_client()
-    namespace = os.getenv("OCI_NAMESPACE")
-    bucket    = os.getenv("OCI_BUCKET_NAME")
-    client.put_object(
-        namespace_name=namespace,
-        bucket_name=bucket,
-        object_name=filename,
-        put_object_body=io.BytesIO(contents),
-    )
+    with _oci_queue_slot():
+        client    = _oci_client()
+        namespace = os.getenv("OCI_NAMESPACE")
+        bucket    = os.getenv("OCI_BUCKET_NAME")
+        client.put_object(
+            namespace_name=namespace,
+            bucket_name=bucket,
+            object_name=filename,
+            put_object_body=io.BytesIO(contents),
+        )
     return _oci_public_url(filename)
 
 
@@ -90,14 +117,15 @@ def _oci_delete(filename: str) -> None:
     """Delete an object from OCI. Silently ignores 404 (already gone)."""
     try:
         import oci
-        client    = _oci_client()
-        namespace = os.getenv("OCI_NAMESPACE")
-        bucket    = os.getenv("OCI_BUCKET_NAME")
-        client.delete_object(
-            namespace_name=namespace,
-            bucket_name=bucket,
-            object_name=filename,
-        )
+        with _oci_queue_slot():
+            client    = _oci_client()
+            namespace = os.getenv("OCI_NAMESPACE")
+            bucket    = os.getenv("OCI_BUCKET_NAME")
+            client.delete_object(
+                namespace_name=namespace,
+                bucket_name=bucket,
+                object_name=filename,
+            )
     except Exception:
         pass  # object already deleted or never existed — safe to ignore
 

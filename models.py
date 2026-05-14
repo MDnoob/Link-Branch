@@ -72,7 +72,7 @@ class Link(Base):
     user_id     = Column(Integer, ForeignKey("users.id"), nullable=False)
     title       = Column(String(200), nullable=False)
     url         = Column(String(500), nullable=True)
-    icon        = Column(String(255), nullable=True)
+    icon        = Column(String(500), nullable=True)
     is_active   = Column(Boolean, default=True)
     is_section  = Column(Boolean, default=False)
     sort_order  = Column(Integer, default=0)

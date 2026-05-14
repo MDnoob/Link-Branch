@@ -62,6 +62,10 @@ def _cors_allow_origins() -> list[str]:
     return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
 
 
+def _docs_enabled() -> bool:
+    return _env_flag("ENABLE_DOCS", default=not _is_production())
+
+
 def _public_base_url(request: Request) -> str:
     configured = (os.getenv("PUBLIC_BASE_URL") or "").strip()
     if configured:
@@ -123,16 +127,34 @@ def _migrate_sqlite_tracking_tables() -> None:
     )
 
 
+def _migrate_sqlite_assets_table() -> None:
+    _migrate_sqlite_table_columns(
+        "assets",
+        {
+            "file_size": "INTEGER DEFAULT 0",
+        },
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _migrate_sqlite_users_table()
     _migrate_sqlite_tracking_tables()
+    _migrate_sqlite_assets_table()
     print("Database tables ready")
     yield
 
 
-app = FastAPI(title="Link Branch", version="0.1.1", lifespan=lifespan)
+_enable_docs = _docs_enabled()
+app = FastAPI(
+    title="Link Branch",
+    version="0.1.1",
+    lifespan=lifespan,
+    docs_url="/docs" if _enable_docs else None,
+    redoc_url="/redoc" if _enable_docs else None,
+    openapi_url="/openapi.json" if _enable_docs else None,
+)
 
 cors_origins = _cors_allow_origins()
 if cors_origins:
@@ -229,5 +251,5 @@ if __name__ == "__main__":
         "main:app",
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", "8000")),
-        reload=str(os.getenv("RELOAD", "false")).strip().lower() in {"1", "true", "yes", "on"},
+        reload=_env_flag("RELOAD", default=False) and not _is_production(),
     )
